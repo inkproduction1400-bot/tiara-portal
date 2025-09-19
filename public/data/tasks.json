@@ -1,0 +1,298 @@
+[
+  {
+    "title": "キックオフ／進行体制確定",
+    "started": true,
+    "done": false,
+    "progress": 50,
+    "start": "2025-09-19",
+    "end": "2025-09-22"
+  },
+  {
+    "title": "品質・セキュリティ方針",
+    "started": true,
+    "done": false,
+    "progress": 50,
+    "start": "2025-09-19",
+    "end": "2025-09-22"
+  },
+  {
+    "title": "スケジュール・マイルストーン管理",
+    "started": true,
+    "done": false,
+    "progress": 50,
+    "start": "2025-09-19",
+    "end": "2025-09-22"
+  },
+  {
+    "title": "対象範囲確定",
+    "started": true,
+    "done": false,
+    "progress": 50,
+    "start": "2025-09-19",
+    "end": "2025-09-29"
+  },
+  {
+    "title": "画面要件定義（カード4項目・アイコン要確認）",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-09-22",
+    "end": "2025-10-06"
+  },
+  {
+    "title": "LINE/LIFF導線要件（LINE公式依存）",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-09-22",
+    "end": "2025-10-06"
+  },
+  {
+    "title": "データ移行要件定義（WP名簿DB・店舗Excel依存）",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-09-22",
+    "end": "2025-10-06"
+  },
+  {
+    "title": "非機能要件整理",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-09-22",
+    "end": "2025-10-06"
+  },
+  {
+    "title": "ERD/テーブル定義 v0→v1",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-06",
+    "end": "2025-10-13"
+  },
+  {
+    "title": "インデックス・MV設計",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-06",
+    "end": "2025-10-13"
+  },
+  {
+    "title": "API一覧 v1（REST）",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-06",
+    "end": "2025-10-13"
+  },
+  {
+    "title": "インフラ準備（VPS＋Postgres）",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-13",
+    "end": "2025-10-20"
+  },
+  {
+    "title": "CI/CD構築（GitHub Actions）",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-13",
+    "end": "2025-10-20"
+  },
+  {
+    "title": "コーディング規約・枝分かれ",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-13",
+    "end": "2025-10-20"
+  },
+  {
+    "title": "認証・認可／LINE連携（LINE依存）",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-20",
+    "end": "2025-10-27"
+  },
+  {
+    "title": "応募〜審査フロー実装（身分証データ取扱注意）",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-20",
+    "end": "2025-10-27"
+  },
+  {
+    "title": "勤怠（出退勤）実装",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-27",
+    "end": "2025-11-10"
+  },
+  {
+    "title": "スケジュール（シフト）実装",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-27",
+    "end": "2025-11-10"
+  },
+  {
+    "title": "NG/マッチング（ルールベース）",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-11-10",
+    "end": "2025-11-17"
+  },
+  {
+    "title": "ダッシュボード集計API",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-11-10",
+    "end": "2025-11-17"
+  },
+  {
+    "title": "チャット連携（Chatwoot）",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-11-17",
+    "end": "2025-11-24"
+  },
+  {
+    "title": "通知/SOS実装",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-11-17",
+    "end": "2025-11-24"
+  },
+  {
+    "title": "キャストPWA（出退勤/予定/プロフィール）",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-11-03",
+    "end": "2025-11-24"
+  },
+  {
+    "title": "管理Web（ダッシュボード/印刷）",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-11-03",
+    "end": "2025-11-24"
+  },
+  {
+    "title": "店舗画面（条件入力＋一覧）",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-11-10",
+    "end": "2025-11-24"
+  },
+  {
+    "title": "データ受領（先方から依存）",
+    "started": true,
+    "done": false,
+    "progress": 50,
+    "start": "2025-09-19",
+    "end": "2025-10-20"
+  },
+  {
+    "title": "マッピング／クリーニング",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-11-03",
+    "end": "2025-11-10"
+  },
+  {
+    "title": "取込スクリプト／検証",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-11-17",
+    "end": "2025-11-24"
+  },
+  {
+    "title": "単体テスト",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-11-24",
+    "end": "2025-12-01"
+  },
+  {
+    "title": "E2Eテスト",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-11-24",
+    "end": "2025-12-01"
+  },
+  {
+    "title": "性能テスト",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-12-01",
+    "end": "2025-12-08"
+  },
+  {
+    "title": "クロスブラウザ／レスポンシブ",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-12-01",
+    "end": "2025-12-08"
+  },
+  {
+    "title": "UAT（テストユーザー参加）",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-12-08",
+    "end": "2025-12-15"
+  },
+  {
+    "title": "監視・運用Runbook",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-12-08",
+    "end": "2025-12-15"
+  },
+  {
+    "title": "管理者トレーニング",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-12-08",
+    "end": "2025-12-15"
+  },
+  {
+    "title": "本番デプロイ",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-12-22",
+    "end": "2025-12-29"
+  },
+  {
+    "title": "リリースノート作成",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-12-22",
+    "end": "2025-12-29"
+  }
+]

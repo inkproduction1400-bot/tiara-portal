@@ -1,0 +1,24 @@
+{
+    "name": "tiara-portal",
+    "private": true,
+    "scripts": {
+        "dev": "next dev -p 3000",
+        "build": "next build",
+        "start": "next start",
+        "lint": "next lint"
+    },
+    "dependencies": {
+        "@supabase/supabase-js": "^2.57.4",
+        "dayjs": "^1.11.18",
+        "next": "^15.5.3",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+        "xlsx": "^0.18.5"
+    },
+    "devDependencies": {
+        "@types/node": "latest",
+        "@types/react": "latest",
+        "@types/react-dom": "latest",
+        "typescript": "latest"
+    }
+}
