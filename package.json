@@ -12,8 +12,7 @@
         "dayjs": "^1.11.18",
         "next": "^15.5.3",
         "react": "^18.3.1",
-        "react-dom": "^18.3.1",
-        "xlsx": "^0.18.5"
+        "react-dom": "^18.3.1"
     },
     "devDependencies": {
         "@types/node": "latest",
