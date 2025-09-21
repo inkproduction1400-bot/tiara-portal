@@ -1,13 +1,72 @@
 name: API Smoke
-on: [push]
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
 jobs:
   smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      NEXT_TELEMETRY_DISABLED: "1"
+      NODE_OPTIONS: "--max_old_space_size=2048"
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '20' }
-      - run: npm ci
-      - run: npm run build
-      - run: npm start & sleep 5
-      - run: bash scripts/test-api.sh
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      # 早期に Secrets が空なら落とす（中身は出さない）
+      - name: Verify required env
+        run: |
+          required=(NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY)
+          for k in "${required[@]}"; do
+            if [ -z "${!k}" ]; then
+              echo "::error title=Missing secret::${k} is not set in repository Secrets"
+              exit 1
+            fi
+          done
+          echo "All required env present."
+
+      - name: Build (production)
+        run: npm run build
+
+      - name: Start server
+        run: |
+          nohup npm run start -- -p 3000 >/tmp/next.log 2>&1 &
+          echo $! > /tmp/next.pid
+          # 起動待ち（最大60秒）
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3000/api/casts >/dev/null; then
+              echo "Server is up."
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error title=Server did not start in time::see /tmp/next.log"
+          tail -n 200 /tmp/next.log || true
+          exit 1
+
+      - name: Smoke tests
+        run: bash scripts/test-api.sh
+
+      - name: Upload server log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: next-log
+          path: /tmp/next.log
