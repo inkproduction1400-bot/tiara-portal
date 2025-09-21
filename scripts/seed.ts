@@ -25,7 +25,7 @@ type CastInsert = {
   drinkable?: boolean | null;
   owner?: string | null;
 };
-type CastRow = { id: string };
+type CastRow = { id: string; wage?: number | null };
 
 /** stores.name をユニークキーとして確実に upsert（23505 時はフォールバック） */
 async function upsertStoreByName(input: {
@@ -116,10 +116,11 @@ async function main() {
   ];
 
   // casts は (store_id, name) で衝突更新
+  // pay_rate スナップショットに使うため wage も一緒に取得
   const { data: castRows, error: cErr } = (await supabaseAdmin
     .from('casts')
     .upsert(casts, { onConflict: 'store_id,name', ignoreDuplicates: false })
-    .select('id')) as unknown as { data: CastRow[]; error: any };
+    .select('id,wage')) as unknown as { data: CastRow[]; error: any };
   if (cErr) throw cErr;
 
   // ★ shifts を upsert 化（cast_id, starts_at を一意キーとする）
@@ -132,6 +133,9 @@ async function main() {
     starts_at: starts1,
     ends_at: ends1,
     status: 'scheduled',
+    role: 'cast',                         // 0003 の追加列に合わせる
+    pay_rate: c.wage ?? null,             // ← その時点の時給をスナップショット
+    memo: 'seed',                         // ← 追跡用
   }));
   if (shiftRows.length) {
     const { error: sErr } = await supabaseAdmin
