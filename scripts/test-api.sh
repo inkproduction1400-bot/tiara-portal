@@ -58,6 +58,75 @@ echo "== stores keyword =="
 curl -fsS -G "${BASE_URL}/api/stores" \
   --data-urlencode "keyword=中洲" | jq .
 
+# storesの先頭を取得（Casts/ShiftsのPOSTに利用）
+first_store=$(curl -fsS "${BASE_URL}/api/stores" | jq -r '.items[0].id')
+if [ -z "${first_store}" ] || [ "${first_store}" = "null" ]; then
+  echo "No store found. Aborting."
+  exit 1
+fi
+
+# ---------------------------
+# 回帰検知: Casts POST -> 409 -> PATCH -> 404
+# ---------------------------
+echo "== casts POST/PATCH smoke =="
+
+unique_name="__smoke_cast__$(date -u +%s)"
+cast_post_payload=$(cat <<JSON
+{
+  "store_id":"${first_store}",
+  "name":"${unique_name}",
+  "nickname":"Smoke",
+  "wage":2000,
+  "rating":4.0,
+  "genre":["レギュラー"],
+  "drinkable":true,
+  "owner":"Tiara"
+}
+JSON
+)
+
+# POST /api/casts
+cast_post_resp=$(curl -sS -X POST "${BASE_URL}/api/casts" \
+  -H "Content-Type: application/json" \
+  -d "${cast_post_payload}")
+echo "$cast_post_resp" | jq .
+new_cast_id=$(echo "$cast_post_resp" | jq -r '.item.id')
+if [ -z "$new_cast_id" ] || [ "$new_cast_id" = "null" ]; then
+  echo "POST /api/casts did not return item.id"
+  exit 1
+fi
+
+# 重複（同store_id+name）で 409 を期待
+dup_code=$(curl -s -X POST "${BASE_URL}/api/casts" \
+  -H "Content-Type: application/json" \
+  -d "{\"store_id\":\"${first_store}\",\"name\":\"${unique_name}\"}" \
+  -o /dev/null -w "%{http_code}")
+if [ "$dup_code" -ne 409 ]; then
+  echo "Expected 409 on duplicate cast, got $dup_code"
+  exit 1
+fi
+
+# PATCH /api/casts/[id]
+cast_patch_resp=$(curl -sS -X PATCH "${BASE_URL}/api/casts/${new_cast_id}" \
+  -H "Content-Type: application/json" \
+  -d '{"nickname":"UpdatedSmoke","rating":4.2}')
+echo "$cast_patch_resp" | jq .
+patched_nickname=$(echo "$cast_patch_resp" | jq -r '.item.nickname')
+if [ "$patched_nickname" != "UpdatedSmoke" ]; then
+  echo "PATCH /api/casts failed: nickname not updated"
+  exit 1
+fi
+
+# 不在ID 404 を期待
+nf_code=$(curl -s -X PATCH "${BASE_URL}/api/casts/00000000-0000-0000-0000-000000000000" \
+  -H "Content-Type: application/json" \
+  -d '{"nickname":"x"}' \
+  -o /dev/null -w "%{http_code}")
+if [ "$nf_code" -ne 404 ]; then
+  echo "Expected 404 on PATCH non-existent cast, got $nf_code"
+  exit 1
+fi
+
 echo "== shifts range & sort =="
 body=$(curl -fsS -G "${BASE_URL}/api/shifts" \
   --data-urlencode "from=${FROM}" \
@@ -82,20 +151,14 @@ if [ "$cast_id" != "null" ] && [ -n "$cast_id" ]; then
 fi
 
 # ---------------------------
-# 回帰検知: POST -> PATCH
+# 回帰検知: Shifts POST -> PATCH
 # ---------------------------
 echo "== shifts POST/PATCH smoke =="
 
-# 任意の cast/store（先頭）を取得
+# 任意の cast（先頭）を取得
 first_cast=$(curl -fsS "${BASE_URL}/api/casts" | jq -r '.items[0].id')
-first_store=$(curl -fsS "${BASE_URL}/api/stores" | jq -r '.items[0].id')
-
 if [ -z "${first_cast}" ] || [ "${first_cast}" = "null" ]; then
   echo "No cast found to run POST/PATCH smoke."
-  exit 1
-fi
-if [ -z "${first_store}" ] || [ "${first_store}" = "null" ]; then
-  echo "No store found to run POST/PATCH smoke."
   exit 1
 fi
 
@@ -106,7 +169,6 @@ if date -u -d "${START_AT} +4 hours" +"%Y-%m-%dT%H:%M:%SZ" >/dev/null 2>&1; then
   END_AT=$(date -u -d "${START_AT} +4 hours" +"%Y-%m-%dT%H:%M:%SZ")
 else
   # BSD: START_AT を基準に +4H
-  # macOS の date は -j -f でパースした上で -v+4H を適用
   END_AT=$(date -u -j -f "%Y-%m-%dT%H:%M:%SZ" "${START_AT}" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "${START_AT}")
   END_AT=$(date -u -v+4H -j -f "%Y-%m-%dT%H:%M:%SZ" "${END_AT}" +"%Y-%m-%dT%H:%M:%SZ")
 fi
@@ -125,7 +187,7 @@ post_payload=$(cat <<JSON
 JSON
 )
 
-# POST
+# POST /api/shifts
 post_resp=$(curl -sS -X POST "${BASE_URL}/api/shifts" \
   -H "Content-Type: application/json" \
   -d "${post_payload}")
