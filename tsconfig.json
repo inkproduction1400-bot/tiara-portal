@@ -14,9 +14,23 @@
       "isolatedModules": true,
       "jsx": "preserve",
       "incremental": true,
-      "types": ["node", "react", "react-dom"]
+      "types": ["node", "react", "react-dom"],
+  
+      /* ★ 追加（エイリアス用） */
+      "baseUrl": ".",
+      "paths": { "@/*": ["*"] }
     },
     "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
-    "exclude": ["node_modules"]
+    "exclude": ["node_modules"],
+  
+    /* ★ ts-node で seed 等を動かすための上書き（Next の設定はそのまま） */
+    "ts-node": {
+      "compilerOptions": {
+        "module": "commonjs",
+        "moduleResolution": "node",
+        "baseUrl": ".",
+        "paths": { "@/*": ["*"] }
+      }
+    }
   }
   

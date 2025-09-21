@@ -5,7 +5,9 @@
         "dev": "next dev -p 3000",
         "build": "next build",
         "start": "next start",
-        "lint": "next lint"
+        "lint": "next lint",
+        "seed": "ts-node -r tsconfig-paths/register --compiler-options '{\"module\":\"commonjs\"}' scripts/seed.ts",
+        "test:api": "bash scripts/test-api.sh"
     },
     "dependencies": {
         "@supabase/supabase-js": "^2.57.4",
@@ -18,6 +20,9 @@
         "@types/node": "latest",
         "@types/react": "latest",
         "@types/react-dom": "latest",
+        "dotenv": "^17.2.2",
+        "ts-node": "^10.9.2",
+        "tsconfig-paths": "^4.2.0",
         "typescript": "latest"
     }
 }

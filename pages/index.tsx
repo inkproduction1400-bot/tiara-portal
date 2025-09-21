@@ -24,9 +24,9 @@ export default function Home() {
           <li><Link href="/wbs">WBS & ガントチャート</Link></li>
           <li><Link href="/erd">ERD図</Link></li>
           <li><Link href="/rules">開発ルール</Link></li>
+          <li><Link href="/docs/coding-rules">コーディングルール</Link></li> {/* ← 追加 */}
           <li><Link href="/actions">次アクション</Link></li>
-          <li><a href="/questionnaire">質問票ドラフト</a></li>
-          <li><a href="/questionnaire">質問票（PM記入）</a></li>
+          <li><a href="/questionnaire">質問票</a></li>
         </ul>
       </main>
     </>
