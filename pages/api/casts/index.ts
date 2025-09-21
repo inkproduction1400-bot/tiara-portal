@@ -1,108 +1,96 @@
-// pages/api/casts/index.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAdmin as supabase } from '@/lib/db';
+import { z } from 'zod';
 
-const SORT_WHITELIST = new Set(['name', 'wage', 'rating', 'created_at', 'updated_at']);
+type ApiError = { ok: false; code: 'VALIDATION_ERROR' | 'DB_ERROR' | 'INTERNAL_ERROR'; message: string };
+const bad = (code: ApiError['code'], message: string, status = 400) =>
+  ({ status, body: { ok: false, code, message } as ApiError });
 
-function toBool(v: unknown): boolean | undefined {
-  if (v === undefined) return undefined;
-  if (typeof v === 'boolean') return v;
-  const s = String(v).trim().toLowerCase();
-  if (['true', '1', 't', 'yes', 'y'].includes(s)) return true;
-  if (['false', '0', 'f', 'no', 'n'].includes(s)) return false;
-  return undefined;
-}
+const SORTS = new Set(['name','rating','wage','created_at','updated_at']);
+
+const querySchema = z.object({
+  keyword:   z.string().optional(),
+  owner:     z.string().optional(),
+  genre:     z.string().optional(),      // 単一値（カンマ区切り対応は必要に応じて）
+  drinkable: z.coerce.boolean().optional(),
+  wage_min:  z.coerce.number().optional(),
+  active:    z.coerce.boolean().optional(),
+  page:  z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(30),
+  sort:  z.string().optional(),          // 例: "rating,-wage,name"
+});
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'GET') return res.status(405).json({ ok: false, error: 'Method Not Allowed' });
-  if (!supabase) return res.status(500).json({ ok: false, error: 'Service role is not configured' });
-
-  const {
-    keyword = '',
-    owner,
-    wage_min,
-    genre,
-    drinkable,
-    status,
-    page = '1',
-    limit = '30',
-    sort = 'rating,-wage,name',
-  } = req.query as Record<string, string>;
-
-  const pageNum = Math.max(1, parseInt(String(page), 10) || 1);
-  const limitNum = Math.min(100, Math.max(1, parseInt(String(limit), 10) || 30));
-  const from = (pageNum - 1) * limitNum;
-  const to = from + limitNum - 1;
-
-  // --- 先に総数だけ head クエリで取得（範囲外ガード用）
-  let countQuery = supabase.from('casts').select('*', { count: 'exact', head: true });
-
-  const kw = keyword?.trim();
-  if (kw) {
-    const esc = kw.replace(/[*]/g, '\\*').replace(/_/g, '\\_'); // 軽いエスケープ
-    countQuery = countQuery.or(`name.ilike.*${esc}*,nickname.ilike.*${esc}*`);
+  if (req.method !== 'GET') {
+    const e = bad('VALIDATION_ERROR', 'Method Not Allowed', 405);
+    return res.status(e.status).json(e.body);
   }
-  if (owner && owner.trim()) countQuery = countQuery.eq('owner', owner.trim());
-  if (typeof wage_min !== 'undefined' && wage_min !== '') {
-    const min = Number(wage_min);
-    if (!Number.isNaN(min)) countQuery = countQuery.gte('wage', min);
-  }
-  if (status && status.trim()) countQuery = countQuery.eq('status', status.trim());
-  const drink = toBool(drinkable);
-  if (typeof drink === 'boolean') countQuery = countQuery.eq('drinkable', drink);
-  if (genre && genre.trim()) {
-    const arr = genre.split(',').map((v) => v.trim()).filter(Boolean);
-    if (arr.length) countQuery = countQuery.overlaps('genre', arr);
+  if (!supabase) {
+    const e = bad('INTERNAL_ERROR', 'Service role is not configured', 500);
+    return res.status(e.status).json(e.body);
   }
 
-  const { count: total, error: countErr } = await countQuery;
-  if (countErr) return res.status(500).json({ ok: false, error: countErr.message });
+  const parsed = querySchema.safeParse(req.query);
+  if (!parsed.success) {
+    const e = bad('VALIDATION_ERROR', parsed.error.message, 400);
+    return res.status(e.status).json(e.body);
+  }
+  const { keyword, owner, genre, drinkable, wage_min, active, page, limit, sort } = parsed.data;
 
-  if ((total ?? 0) === 0 || from >= (total ?? 0)) {
-    return res.status(200).json({ ok: true, items: [], page: pageNum, limit: limitNum, total: total ?? 0, hasNext: false });
+  const rFrom = (page - 1) * limit;
+  const rTo = rFrom + limit - 1;
+
+  // COUNT
+  let cq = supabase.from('casts').select('*', { count: 'exact', head: true });
+  if (keyword)  cq = cq.ilike('name', `%${keyword}%`);
+  if (owner)    cq = cq.eq('owner', owner);
+  if (genre)    cq = cq.contains('genre', [genre]); // genre: text[]
+  if (drinkable !== undefined) cq = cq.eq('drinkable', drinkable);
+  if (wage_min !== undefined)  cq = cq.gte('wage', wage_min);
+  if (active !== undefined)    cq = cq.eq('active', active);
+
+  const { count: total, error: cntErr } = await cq;
+  if (cntErr) {
+    const e = bad('DB_ERROR', cntErr.message, 500);
+    return res.status(e.status).json(e.body);
+  }
+  if ((total ?? 0) === 0 || rFrom >= (total ?? 0)) {
+    return res.status(200).json({ ok: true, items: [], page, limit, total: total ?? 0, hasNext: false });
   }
 
-  // --- 実データの取得
+  // DATA
   let q = supabase.from('casts').select('*');
+  if (keyword)  q = q.ilike('name', `%${keyword}%`);
+  if (owner)    q = q.eq('owner', owner);
+  if (genre)    q = q.contains('genre', [genre]);
+  if (drinkable !== undefined) q = q.eq('drinkable', drinkable);
+  if (wage_min !== undefined)  q = q.gte('wage', wage_min);
+  if (active !== undefined)    q = q.eq('active', active);
 
-  if (kw) {
-    const esc = kw.replace(/[*]/g, '\\*').replace(/_/g, '\\_');
-    q = q.or(`name.ilike.*${esc}*,nickname.ilike.*${esc}*`);
-  }
-  if (owner && owner.trim()) q = q.eq('owner', owner.trim());
-  if (typeof wage_min !== 'undefined' && wage_min !== '') {
-    const min = Number(wage_min);
-    if (!Number.isNaN(min)) q = q.gte('wage', min);
-  }
-  if (status && status.trim()) q = q.eq('status', status.trim());
-  if (typeof drink === 'boolean') q = q.eq('drinkable', drink);
-  if (genre && genre.trim()) {
-    const arr = genre.split(',').map((v) => v.trim()).filter(Boolean);
-    if (arr.length) q = q.overlaps('genre', arr);
-  }
-
-  if (sort && sort.trim()) {
-    const fields = sort.split(',').map((s) => s.trim()).filter(Boolean);
-    for (const f of fields) {
-      const ascending = !f.startsWith('-');
-      const key = f.replace(/^[+-]/, '');
-      if (SORT_WHITELIST.has(key)) q = q.order(key as any, { ascending, nullsFirst: !ascending });
+  if (sort) {
+    const parts = sort.split(',').map(s => s.trim()).filter(Boolean);
+    for (const p of parts) {
+      const asc = !p.startsWith('-');
+      const key = p.replace(/^[+-]/,'');
+      if (SORTS.has(key)) q = q.order(key as any, { ascending: asc, nullsFirst: !asc });
     }
   } else {
-    q = q.order('rating', { ascending: false }).order('name', { ascending: true });
+    q = q.order('updated_at', { ascending: false }).order('name', { ascending: true });
   }
 
-  q = q.range(from, to);
+  q = q.range(rFrom, rTo);
 
   const { data, error } = await q;
-  if (error) return res.status(500).json({ ok: false, error: error.message });
+  if (error) {
+    const e = bad('DB_ERROR', error.message, 500);
+    return res.status(e.status).json(e.body);
+  }
 
   res.status(200).json({
     ok: true,
     items: data ?? [],
-    page: pageNum,
-    limit: limitNum,
+    page, limit,
     total: total ?? 0,
-    hasNext: to + 1 < (total ?? 0),
+    hasNext: rTo + 1 < (total ?? 0),
   });
 }
