@@ -1,7 +1,5 @@
--- 同一キャストの同一開始時刻を一意に
 create unique index if not exists uq_shifts_cast_start
   on public.shifts (cast_id, starts_at);
-
 do $$
 begin
   if not exists (

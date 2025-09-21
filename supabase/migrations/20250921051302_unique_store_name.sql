@@ -1,6 +1,4 @@
--- supabase/migrations/0002b_unique_store_name.sql
 create unique index if not exists uq_stores_name_idx on public.stores (name);
-
 do $$
 begin
   if not exists (
