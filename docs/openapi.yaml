@@ -59,6 +59,59 @@ paths:
               schema: { $ref: '#/components/schemas/PaginatedCasts' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '500': { $ref: '#/components/responses/DbError' }
+    post:
+      tags: [Casts]
+      summary: Create cast
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CastCreate' }
+      responses:
+        '200':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  item: { $ref: '#/components/schemas/Cast' }
+                required: [ok, item]
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }   # store_id 不正
+        '409': { $ref: '#/components/responses/Conflict' }   # (store_id,name) 一意違反
+        '500': { $ref: '#/components/responses/DbError' }
+
+  /api/casts/{id}:
+    patch:
+      tags: [Casts]
+      summary: Update cast (partial)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CastUpdate' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  item: { $ref: '#/components/schemas/Cast' }
+                required: [ok, item]
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/DbError' }
 
   /api/stores:
     get:
@@ -128,6 +181,57 @@ paths:
                   - $ref: '#/components/schemas/PaginatedShifts'
                   - $ref: '#/components/schemas/PaginatedShiftsExpanded'
         '400': { $ref: '#/components/responses/ValidationError' }
+        '500': { $ref: '#/components/responses/DbError' }
+    post:
+      tags: [Shifts]
+      summary: Create shift
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ShiftCreate' }
+      responses:
+        '200':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  item: { $ref: '#/components/schemas/Shift' }
+                required: [ok, item]
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' } # FK不整合など
+        '500': { $ref: '#/components/responses/DbError' }
+
+  /api/shifts/{id}:
+    patch:
+      tags: [Shifts]
+      summary: Update shift (partial)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ShiftUpdate' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  item: { $ref: '#/components/schemas/Shift' }
+                required: [ok, item]
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '500': { $ref: '#/components/responses/DbError' }
 
   /api/webhooks/line:
@@ -214,6 +318,22 @@ components:
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ApiError' }
+    NotFound:
+      description: リソースが存在しない
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+          examples:
+            example:
+              value: { ok: false, code: DB_ERROR, message: "not found" }
+    Conflict:
+      description: 一意制約違反など競合
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+          examples:
+            example:
+              value: { ok: false, code: DB_ERROR, message: "duplicate key value violates unique constraint" }
 
   schemas:
     ApiError:
@@ -280,6 +400,48 @@ components:
         deleted_at: { type: string, format: date-time, nullable: true }
       required: [id, store_id, name, active, created_at, updated_at]
 
+    # --- Casts requests ---
+    CastCreate:
+      type: object
+      properties:
+        store_id: { type: string, format: uuid }
+        name: { type: string }
+        nickname: { type: string }
+        wage: { type: number }
+        rating: { type: number }
+        genre:
+          type: array
+          items: { type: string }
+        drinkable: { type: boolean }
+        owner: { type: string }
+      required: [store_id, name]
+
+    CastUpdate:
+      type: object
+      description: いずれのフィールドも任意（部分更新）
+      properties:
+        store_id: { type: string, format: uuid }
+        name: { type: string }
+        nickname: { type: string, nullable: true }
+        wage: { type: number, nullable: true }
+        rating: { type: number, nullable: true }
+        genre:
+          type: array
+          items: { type: string }
+          nullable: true
+        drinkable: { type: boolean, nullable: true }
+        owner: { type: string, nullable: true }
+        active: { type: boolean, nullable: true }
+        code: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        email: { type: string, nullable: true }
+        status: { type: string, nullable: true }
+        profile_note: { type: string, nullable: true }
+        tags:
+          type: array
+          items: { type: string }
+          nullable: true
+
     Shift:
       type: object
       properties:
@@ -301,6 +463,41 @@ components:
         updated_at: { type: string, format: date-time }
       required:
         [id, cast_id, starts_at, ends_at, status, role, created_at, updated_at]
+
+    # --- Shifts requests ---
+    ShiftCreate:
+      type: object
+      properties:
+        cast_id: { type: string, format: uuid }
+        store_id: { type: string, format: uuid, nullable: true }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        status:
+          type: string
+          enum: [scheduled, confirmed, canceled, finished]
+        role:
+          type: string
+          enum: [cast]
+        pay_rate: { type: number }
+        memo: { type: string }
+      required: [cast_id, starts_at, ends_at, status, role]
+
+    ShiftUpdate:
+      type: object
+      description: いずれのフィールドも任意（部分更新）
+      properties:
+        cast_id: { type: string, format: uuid }
+        store_id: { type: string, format: uuid, nullable: true }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        status:
+          type: string
+          enum: [scheduled, confirmed, canceled, finished]
+        role:
+          type: string
+          enum: [cast]
+        pay_rate: { type: number, nullable: true }
+        memo: { type: string, nullable: true }
 
     ShiftExpanded:
       allOf:
