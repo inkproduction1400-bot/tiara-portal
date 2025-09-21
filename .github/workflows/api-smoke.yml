@@ -16,6 +16,8 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       NEXT_TELEMETRY_DISABLED: "1"
       NODE_OPTIONS: "--max_old_space_size=2048"
+      # スモークで叩くベースURL（scripts/test-api.sh が読む）
+      BASE_URL: "http://localhost:3001"
 
     steps:
       - name: Checkout
@@ -32,7 +34,9 @@ jobs:
 
       # 早期に Secrets が空なら落とす（中身は出さない）
       - name: Verify required env
+        shell: bash
         run: |
+          set -euo pipefail
           required=(NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY)
           for k in "${required[@]}"; do
             if [ -z "${!k}" ]; then
@@ -45,14 +49,16 @@ jobs:
       - name: Build (production)
         run: npm run build
 
-      - name: Start server
+      - name: Start server (port 3001)
+        shell: bash
         run: |
-          nohup npm run start -- -p 3000 >/tmp/next.log 2>&1 &
+          set -euo pipefail
+          nohup npm run start -- -p 3001 >/tmp/next.log 2>&1 &
           echo $! > /tmp/next.pid
           # 起動待ち（最大60秒）
           for i in $(seq 1 60); do
-            if curl -sf http://localhost:3000/api/casts >/dev/null; then
-              echo "Server is up."
+            if curl -sf http://localhost:3001/api/casts >/dev/null; then
+              echo "Server is up on :3001."
               exit 0
             fi
             sleep 1
