@@ -1,0 +1,347 @@
+openapi: 3.0.3
+info:
+  title: Tiara System Portal API
+  version: 0.1.0
+  description: |
+    勤怠管理MVP向けの社内API定義。
+    - RLSはDB側で **全Deny**、本APIは Service Role 経由のみ想定（外部公開なし）。
+    - すべての成功レスポンスは `{ ok:true, ... }`、エラーは `{ ok:false, code, message }`。
+
+servers:
+  - url: http://localhost:3000
+    description: Local Dev
+  - url: https://{vercel_project}.vercel.app
+    description: Vercel Preview/Prod
+    variables:
+      vercel_project:
+        default: tiara-portal
+
+tags:
+  - name: Casts
+  - name: Stores
+  - name: Shifts
+  - name: Webhooks
+
+paths:
+  /api/casts:
+    get:
+      tags: [Casts]
+      summary: List casts
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Sort'
+        - in: query
+          name: keyword
+          schema: { type: string }
+          description: 部分一致（name）
+        - in: query
+          name: owner
+          schema: { type: string }
+        - in: query
+          name: genre
+          schema: { type: string }
+          description: ジャンル（単一値）。複数は将来拡張。
+        - in: query
+          name: drinkable
+          schema: { type: boolean }
+        - in: query
+          name: wage_min
+          schema: { type: number }
+        - in: query
+          name: active
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaginatedCasts' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '500': { $ref: '#/components/responses/DbError' }
+
+  /api/stores:
+    get:
+      tags: [Stores]
+      summary: List stores
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Sort'
+        - in: query
+          name: keyword
+          schema: { type: string }
+          description: 部分一致（name）
+        - in: query
+          name: active
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaginatedStores' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '500': { $ref: '#/components/responses/DbError' }
+
+  /api/shifts:
+    get:
+      tags: [Shifts]
+      summary: List shifts
+      description: |
+        `expand=names` を付けると `cast_name` / `store_name` を同梱したフラット構造で返却します。
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Sort'
+        - in: query
+          name: store_id
+          schema: { type: string, format: uuid }
+        - in: query
+          name: cast_id
+          schema: { type: string, format: uuid }
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [scheduled, confirmed, canceled, finished]
+        - in: query
+          name: role
+          schema:
+            type: string
+            enum: [cast]
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - in: query
+          name: expand
+          schema:
+            type: string
+            enum: [names]
+          description: 名前を同梱（`names`）
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PaginatedShifts'
+                  - $ref: '#/components/schemas/PaginatedShiftsExpanded'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '500': { $ref: '#/components/responses/DbError' }
+
+  /api/webhooks/line:
+    post:
+      tags: [Webhooks]
+      summary: LINE Webhook stub (audit only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: OK (監査ログに保存)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  audit_id: { type: string, format: uuid }
+                required: [ok]
+        '500': { $ref: '#/components/responses/DbError' }
+
+  /api/webhooks/chatwoot:
+    post:
+      tags: [Webhooks]
+      summary: Chatwoot Webhook stub (audit only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: OK (監査ログに保存)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  audit_id: { type: string, format: uuid }
+                required: [ok]
+        '500': { $ref: '#/components/responses/DbError' }
+
+components:
+  parameters:
+    Page:
+      in: query
+      name: page
+      schema: { type: integer, minimum: 1, default: 1 }
+    Limit:
+      in: query
+      name: limit
+      schema: { type: integer, minimum: 1, maximum: 100, default: 30 }
+    Sort:
+      in: query
+      name: sort
+      schema: { type: string }
+      description: カンマ区切り。`-` で降順（例：`rating,-wage,name`）
+    From:
+      in: query
+      name: from
+      schema: { type: string, format: date-time }
+      description: starts_at の下限（含む）
+    To:
+      in: query
+      name: to
+      schema: { type: string, format: date-time }
+      description: starts_at の上限（未満）
+
+  responses:
+    ValidationError:
+      description: 入力バリデーションエラー（zod）
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+          examples:
+            example:
+              value: { ok: false, code: VALIDATION_ERROR, message: "limit must be <= 100" }
+    DbError:
+      description: データベースエラー
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+
+  schemas:
+    ApiError:
+      type: object
+      properties:
+        ok: { type: boolean, example: false }
+        code:
+          type: string
+          enum: [VALIDATION_ERROR, DB_ERROR, INTERNAL_ERROR]
+        message: { type: string }
+      required: [ok, code, message]
+
+    PaginationMeta:
+      type: object
+      properties:
+        ok: { type: boolean, example: true }
+        page: { type: integer, minimum: 1 }
+        limit: { type: integer, minimum: 1, maximum: 100 }
+        total: { type: integer, minimum: 0 }
+        hasNext: { type: boolean }
+      required: [ok, page, limit, total, hasNext]
+
+    Store:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        address: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        code: { type: string, nullable: true }
+        active: { type: boolean }
+        notes: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+      required: [id, name, active, created_at, updated_at]
+
+    Cast:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        store_id: { type: string, format: uuid }
+        name: { type: string }
+        nickname: { type: string, nullable: true }
+        rating: { type: number, nullable: true }
+        wage: { type: number, nullable: true }
+        genre:
+          type: array
+          items: { type: string }
+          nullable: true
+        drinkable: { type: boolean, nullable: true }
+        owner: { type: string, nullable: true }
+        active: { type: boolean }
+        code: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        email: { type: string, nullable: true }
+        status: { type: string, nullable: true }
+        profile_note: { type: string, nullable: true }
+        tags:
+          type: array
+          items: { type: string }
+          nullable: true
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deleted_at: { type: string, format: date-time, nullable: true }
+      required: [id, store_id, name, active, created_at, updated_at]
+
+    Shift:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        cast_id: { type: string, format: uuid }
+        store_id: { type: string, format: uuid, nullable: true }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        status:
+          type: string
+          enum: [scheduled, confirmed, canceled, finished]
+        memo: { type: string, nullable: true }
+        role:
+          type: string
+          enum: [cast]
+        pay_rate: { type: number, nullable: true }
+        canceled_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+      required:
+        [id, cast_id, starts_at, ends_at, status, role, created_at, updated_at]
+
+    ShiftExpanded:
+      allOf:
+        - $ref: '#/components/schemas/Shift'
+        - type: object
+          properties:
+            cast_name: { type: string, nullable: true }
+            store_name: { type: string, nullable: true }
+
+    PaginatedCasts:
+      allOf:
+        - $ref: '#/components/schemas/PaginationMeta'
+        - type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/Cast' }
+
+    PaginatedStores:
+      allOf:
+        - $ref: '#/components/schemas/PaginationMeta'
+        - type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/Store' }
+
+    PaginatedShifts:
+      allOf:
+        - $ref: '#/components/schemas/PaginationMeta'
+        - type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/Shift' }
+
+    PaginatedShiftsExpanded:
+      allOf:
+        - $ref: '#/components/schemas/PaginationMeta'
+        - type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/ShiftExpanded' }
