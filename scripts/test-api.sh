@@ -19,8 +19,19 @@ echo "== casts default =="
 curl -fsS "${BASE_URL}/api/casts" | jq .
 
 echo "== casts validation NG =="
-# 変なパラメータでエラーが返るか（仕様に合わせて適宜）
-curl -fsS "${BASE_URL}/api/casts?page=abc" | jq .
+# 変なパラメータで 400 が返ることを期待。-f は使わず、ステータスで判定
+tmpfile="$(mktemp)"
+code=$(curl -sS -G "${BASE_URL}/api/casts" \
+  --data-urlencode "page=abc" \
+  -o "$tmpfile" -w "%{http_code}")
+cat "$tmpfile" | jq .
+if [ "$code" -ne 400 ]; then
+  echo "Expected HTTP 400 but got $code"
+  cat "$tmpfile"
+  rm -f "$tmpfile"
+  exit 1
+fi
+rm -f "$tmpfile"
 
 echo "== stores keyword =="
 curl -fsS -G "${BASE_URL}/api/stores" \
