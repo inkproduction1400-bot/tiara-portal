@@ -1,15 +1,36 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_URL="http://localhost:3000"
+# BASE_URL を環境変数で上書き可能に（例：BASE_URL=http://localhost:3001 npm run test:api）
+BASE_URL="${BASE_URL:-http://localhost:3000}"
 
 # ---- portable ISO8601 (UTC) helpers ----
 iso_utc() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
-# Linux (GNU date) 優先、fallback で macOS(BSD date)
+
+# Linux(GNU) 優先、ダメなら macOS(BSD) 用に "+10 hours" -> "-v+10H" に変換して実行
 rel_utc() {
-  local spec="$1"     # e.g. "-1 day" / "+7 days"
-  date -u -d "$spec" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || \
-  date -u -v"${spec/ /}" +"%Y-%m-%dT%H:%M:%SZ"
+  local spec="$1"     # 例: "-15 days" / "+10 hours" / "+4 hours"
+  if date -u -d "$spec" +"%Y-%m-%dT%H:%M:%SZ" >/dev/null 2>&1; then
+    date -u -d "$spec" +"%Y-%m-%dT%H:%M:%SZ"
+    return
+  fi
+  # BSD date 変換
+  local sign num unit bsd_unit
+  sign="${spec%% *}"           # "+10" or "-15"
+  unit="${spec#* }"            # "hours" / "days" など
+  num="${sign#[-+]}"           # "10" / "15"
+  sign="${sign:0:1}"           # "+" / "-"
+  case "$unit" in
+    day|days)       bsd_unit="d" ;;
+    hour|hours)     bsd_unit="H" ;;
+    minute|minutes) bsd_unit="M" ;;
+    second|seconds) bsd_unit="S" ;;
+    week|weeks)     bsd_unit="w" ;;
+    month|months)   bsd_unit="m" ;;
+    year|years)     bsd_unit="y" ;;
+    *) echo "Unsupported unit: $unit" >&2; return 1 ;;
+  esac
+  date -u -v"${sign}${num}${bsd_unit}" +"%Y-%m-%dT%H:%M:%SZ"
 }
 
 FROM="$(rel_utc "-15 days")"
@@ -58,6 +79,83 @@ if [ "$cast_id" != "null" ] && [ -n "$cast_id" ]; then
   curl -fsS -G "${BASE_URL}/api/shifts" \
     --data-urlencode "cast_id=${cast_id}" \
     --data-urlencode "expand=names" | jq .
+fi
+
+# ---------------------------
+# 回帰検知: POST -> PATCH
+# ---------------------------
+echo "== shifts POST/PATCH smoke =="
+
+# 任意の cast/store（先頭）を取得
+first_cast=$(curl -fsS "${BASE_URL}/api/casts" | jq -r '.items[0].id')
+first_store=$(curl -fsS "${BASE_URL}/api/stores" | jq -r '.items[0].id')
+
+if [ -z "${first_cast}" ] || [ "${first_cast}" = "null" ]; then
+  echo "No cast found to run POST/PATCH smoke."
+  exit 1
+fi
+if [ -z "${first_store}" ] || [ "${first_store}" = "null" ]; then
+  echo "No store found to run POST/PATCH smoke."
+  exit 1
+fi
+
+START_AT="$(rel_utc "+10 days")"
+
+# END_AT = START_AT + 4h（GNU/BSD 両対応）
+if date -u -d "${START_AT} +4 hours" +"%Y-%m-%dT%H:%M:%SZ" >/dev/null 2>&1; then
+  END_AT=$(date -u -d "${START_AT} +4 hours" +"%Y-%m-%dT%H:%M:%SZ")
+else
+  # BSD: START_AT を基準に +4H
+  # macOS の date は -j -f でパースした上で -v+4H を適用
+  END_AT=$(date -u -j -f "%Y-%m-%dT%H:%M:%SZ" "${START_AT}" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "${START_AT}")
+  END_AT=$(date -u -v+4H -j -f "%Y-%m-%dT%H:%M:%SZ" "${END_AT}" +"%Y-%m-%dT%H:%M:%SZ")
+fi
+
+post_payload=$(cat <<JSON
+{
+  "cast_id": "${first_cast}",
+  "store_id": "${first_store}",
+  "starts_at": "${START_AT}",
+  "ends_at": "${END_AT}",
+  "status": "scheduled",
+  "role": "cast",
+  "pay_rate": 2500,
+  "memo": "smoke"
+}
+JSON
+)
+
+# POST
+post_resp=$(curl -sS -X POST "${BASE_URL}/api/shifts" \
+  -H "Content-Type: application/json" \
+  -d "${post_payload}")
+echo "${post_resp}" | jq .
+new_id=$(echo "${post_resp}" | jq -r '.item.id')
+if [ -z "${new_id}" ] || [ "${new_id}" = "null" ]; then
+  echo "POST /api/shifts did not return item.id"
+  exit 1
+fi
+
+# PATCH -> canceled
+patch_code=$(curl -sS -o /dev/null -w "%{http_code}" -X PATCH "${BASE_URL}/api/shifts/${new_id}" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"canceled","memo":"smoke canceled"}')
+if [ "$patch_code" -ne 200 ]; then
+  echo "PATCH /api/shifts/${new_id} failed (HTTP ${patch_code})"
+  exit 1
+fi
+
+# 取得して canceled を確認
+get_one=$(curl -fsS -G "${BASE_URL}/api/shifts" \
+  --data-urlencode "cast_id=${first_cast}" \
+  --data-urlencode "from=$(rel_utc '+9 days')" \
+  --data-urlencode "to=$(rel_utc '+11 days')" \
+  --data-urlencode "sort=starts_at")
+echo "${get_one}" | jq .
+status=$(echo "${get_one}" | jq -r '.items[] | select(.id=="'"${new_id}"'") | .status')
+if [ "${status}" != "canceled" ]; then
+  echo "Expected status=canceled for ${new_id}, got ${status:-<empty>}"
+  exit 1
 fi
 
 echo "✅ smoke tests passed"
