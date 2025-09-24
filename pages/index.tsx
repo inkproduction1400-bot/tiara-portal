@@ -22,10 +22,10 @@ export default function Home() {
         <h2>🔗 ページ一覧</h2>
         <ul>
           <li><Link href="/wbs">WBS & ガントチャート</Link></li>
-          <li><Link href="/erd">ERD図</Link></li>
+          <li><Link href="/erd">ERD図🆕9/24</Link></li>
           <li><Link href="/rules">開発ルール</Link></li>
           <li><Link href="/docs/coding-rules">コーディングルール</Link></li> {/* ← 追加 */}
-          <li><Link href="/actions">次アクション</Link></li>
+          <li><Link href="/actions">次アクション🆕9/24</Link></li>
           <li><a href="/questionnaire">質問票</a></li>
         </ul>
       </main>
