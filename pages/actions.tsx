@@ -1,3 +1,4 @@
+// pages/actions.tsx
 import Head from "next/head";
 
 export default function Actions() {
@@ -6,6 +7,7 @@ export default function Actions() {
       <Head>
         <title>進捗サマリ & 次アクション💡2025/09/24更新</title>
       </Head>
+
       <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", lineHeight: 1.6 }}>
         <h1>🚀 進捗サマリ & 次アクション</h1>
         <p>年内MVPに向け、実装済みと次の一手をコンパクトに整理しました。</p>
@@ -13,24 +15,57 @@ export default function Actions() {
         {/* 実装サマリ */}
         <h2>✅ 現在の進捗（実装済み）</h2>
         <ul>
-          <li><strong>RBAC：</strong> 軽量Auth（<code>x-user-id</code>）＋ <code>Roles</code> デコレータ／<code>RolesGuard</code> 実装。<br />
-              役割：<code>ADMIN</code> / <code>STAFF</code> / <code>VIEWER</code>（seed で作成済）</li>
-          <li><strong>Applications：</strong> 一覧・詳細・面接票Upsert・承認（Cast自動作成/更新）・承認後補完ロジックを実装。</li>
-          <li><strong>Casts：</strong> 一覧・詳細・本体/属性/希望/背景の更新、Application⇄Cast 同期、<strong>NGの追加/削除</strong> API。</li>
-          <li><strong>Shops：</strong> 一覧/詳細/作成/更新（要求キーワードの全入替）を実装。</li>
-          <li><strong>Swagger：</strong> DTOに沿った Example を反映（例：<code>POST /applications/:id/docs</code>）。</li>
-          <li><strong>スモークテスト：</strong> <code>npm run smoke</code>（E2E最小）/ <code>npm run smoke:rbac</code>（権限確認）を scripts/ に整備。</li>
-          <li><strong>Seed：</strong> 役割＋3ユーザー（ADMIN/STAFF/VIEWER）を自動投入。出力IDをそのままテストに利用可能。</li>
+          <li>
+            <strong>RBAC：</strong> 軽量Auth（<code>x-user-id</code>）＋ <code>Roles</code> デコレータ／
+            <code>RolesGuard</code> 実装。役割：<code>ADMIN</code> / <code>STAFF</code> /{" "}
+            <code>VIEWER</code>（seed で作成済）
+          </li>
+          <li>
+            <strong>Applications：</strong> 一覧・詳細・面接票Upsert・承認（Cast自動作成/更新）・承認後補完ロジックを実装。
+          </li>
+          <li>
+            <strong>Casts：</strong> 一覧・詳細・本体/属性/希望/背景の更新、Application⇄Cast 同期、{" "}
+            <strong>NGの追加/削除</strong> API。
+          </li>
+          <li>
+            <strong>Shops：</strong> 一覧/詳細/作成/更新（要求キーワードの全入替）を実装。
+          </li>
+          <li>
+            <strong>Swagger：</strong> DTOに沿った Example を反映（例：<code>POST /applications/:id/docs</code>）。
+          </li>
+          <li>
+            <strong>スモークテスト：</strong> <code>npm run smoke</code>（E2E最小） /{" "}
+            <code>npm run smoke:rbac</code>（権限確認）を <code>scripts/</code> に整備。
+          </li>
+          <li>
+            <strong>Seed：</strong> 役割＋3ユーザー（ADMIN/STAFF/VIEWER）を自動投入。出力IDをそのままテストに利用可能。
+          </li>
+          <li>
+            <strong>監査ログ：</strong> <code>audit_logs</code> テーブルに重要操作を記録。
+            例：<code>application.approve</code>・<code>cast.ng.upsert</code>・<code>cast.ng.delete</code>。
+            <br />
+            例：<code>diff</code> には <code>{'{'}migrated, supplementedFields, approvedAt{'}'}</code> などを格納。
+          </li>
         </ul>
 
         {/* 使い方の要点（PM/関係者向けメモ） */}
         <details style={{ margin: "1rem 0" }}>
-          <summary><strong>ℹ️ 動作確認の要点（抜粋）</strong></summary>
+          <summary>
+            <strong>ℹ️ 動作確認の要点（抜粋）</strong>
+          </summary>
           <ul>
             <li>ヘッダ <code>x-user-id</code> に Seed されたユーザーIDを設定。</li>
-            <li><code>POST /applications</code> → <code>PATCH /applications/:id/form</code> → <code>PATCH /applications/:id/approve</code>（承認は ADMIN 権限）。</li>
-            <li>Cast は <code>GET /casts</code> / <code>GET /casts/:id</code> で確認。更新系は ADMIN/STAFF のみ。</li>
-            <li>NG追加/削除：<code>POST /casts/:castId/ngs</code> / <code>DELETE /casts/:castId/ngs/:ngId</code>（ADMIN/STAFF）。</li>
+            <li>
+              <code>POST /applications</code> → <code>PATCH /applications/:id/form</code> →{" "}
+              <code>PATCH /applications/:id/approve</code>（承認は ADMIN 権限）。
+            </li>
+            <li>
+              Cast は <code>GET /casts</code> / <code>GET /casts/:id</code> で確認。更新系は ADMIN/STAFF のみ。
+            </li>
+            <li>
+              NG追加/削除：<code>POST /casts/:castId/ngs</code> /{" "}
+              <code>DELETE /casts/:castId/ngs/:shopId</code>（ADMIN/STAFF）。
+            </li>
           </ul>
         </details>
 
@@ -41,27 +76,36 @@ export default function Actions() {
             <strong>シフト/出勤の最小スコープ実装</strong>
             <ul>
               <li>ERDに沿って <code>shifts</code> / <code>attendances</code> の read-only API を先行（当日一覧）。</li>
-              <li>優先API：<code>GET /shifts?from&to&page</code>、<code>PATCH /shifts/:id</code>（確定/取消）。</li>
+              <li>
+                優先API：<code>GET /shifts?from&to&page</code>、<code>PATCH /shifts/:id</code>（確定/取消）。
+              </li>
             </ul>
           </li>
           <li>
             <strong>応募ドキュメントのアップロード導線</strong>
             <ul>
-              <li><code>POST /applications/:id/docs/presign</code>（S3 署名URL発行）を追加し、現行 <code>/docs</code> 登録と接続。</li>
-              <li>キー規約：<code>applications/&lt;appId&gt;/&lt;docType&gt;/&lt;uuid&gt;</code>、TTL≈10分、privateバケット。</li>
+              <li>
+                <code>POST /applications/:id/docs/presign</code>（S3 署名URL発行）を追加し、現行{" "}
+                <code>/docs</code> 登録と接続。
+              </li>
+              <li>
+                キー規約：<code>applications/&lt;appId&gt;/&lt;docType&gt;/&lt;uuid&gt;</code>、TTL≈10分、privateバケット。
+              </li>
             </ul>
           </li>
           <li>
-            <strong>監査ログ（audit_logs）の雛形</strong>
+            <strong>監査ログの継続強化</strong>
             <ul>
-              <li>重要操作（応募承認・NG登録・シフト確定）の JSON diff を記録するミドルウェアを導入。</li>
-              <li>最初はアプリ内ログ→後日外部集約（CloudWatch/Datadog等）。</li>
+              <li>重要操作（応募承認・NG登録・シフト確定）の JSON diff を記録する仕組みを継続整備。</li>
+              <li>最初はアプリ内ログ → 後日外部集約（CloudWatch/Datadog等）。</li>
             </ul>
           </li>
           <li>
             <strong>テスト/自動化の強化</strong>
             <ul>
-              <li><code>npm run smoke</code> に Shops と NG 操作の簡易チェックを追加。</li>
+              <li>
+                <code>npm run smoke</code> に Shops と NG 操作の簡易チェックを追加。
+              </li>
               <li>Application⇄Cast 同期のユニットテストを1〜2本だけ先に（変更影響が大きい箇所）。</li>
             </ul>
           </li>
@@ -89,7 +133,9 @@ export default function Actions() {
         <ul>
           <li>.env テンプレ：DB/S3/LINE/JWT など必須キーを列挙。</li>
           <li>ESLint/Prettier をルートに適用、CI（lint/typecheck/test）有効化。</li>
-          <li>Swagger を <code>/api/docs</code> で常設、PR にスクリーンショット添付。</li>
+          <li>
+            Swagger を <code>/api/docs</code> で常設、PR にスクリーンショット添付。
+          </li>
         </ul>
 
         {/* 今後の流れ */}
@@ -108,16 +154,44 @@ export default function Actions() {
 
         {/* 参考：コマンド（開発者向け） */}
         <details style={{ marginTop: "1rem" }}>
-          <summary><strong>🔧 参考コマンド（開発者向け）</strong></summary>
-          <pre style={{ background: "#f6f8fa", padding: "1rem", overflowX: "auto" }}>
-{`# seed（IDはRBAC/スモークで使用）
+          <summary>
+            <strong>🔧 参考コマンド（開発者向け）</strong>
+          </summary>
+          <pre style={{ background: "#f6f8fa", padding: "1rem", overflowX: "auto" }}>{`# seed（IDはRBAC/スモークで使用）
 npm run seed
 
 # スモーク（E2E最小／RBAC）
 export ADMIN_ID=...; export STAFF_ID=...; export VIEWER_ID=...
 npm run smoke
-npm run smoke:rbac`}
-          </pre>
+npm run smoke:rbac
+
+# 応募→承認（サンプル：STAFFで応募→ADMINで承認）
+BASE=http://localhost:4000/api/v1
+H_JSON='content-type: application/json'
+
+APP_RESP=$(
+  curl -sS -X POST "$BASE/applications" -H "$H_JSON" -H "x-user-id: $STAFF_ID" \
+  -d "$(jq -n --arg ch line --arg em "audit_\${RANDOM}@example.com" --arg ph "+819012345678" \
+        '{channel:$ch, email:$em, phone:$ph}')"
+)
+APP_ID=$(echo "$APP_RESP" | jq -r '.id // empty')
+
+curl -sS -X PATCH "$BASE/applications/$APP_ID/approve" \
+  -H "$H_JSON" -H "x-user-id: $ADMIN_ID" -d '{}' | jq .
+
+# NG追加/削除（STAFF）
+CAST_ID=$(curl -sS "$BASE/casts?take=1" -H "x-user-id: $STAFF_ID" | jq -r '.[0].userId')
+SHOP_ID=$(curl -sS -X POST "$BASE/shops" -H "$H_JSON" -H "x-user-id: $STAFF_ID" \
+  -d '{"name":"NG監査テスト店"}' | jq -r .id)
+
+curl -sS -X POST "$BASE/casts/$CAST_ID/ngs" \
+  -H "$H_JSON" -H "x-user-id: $STAFF_ID" \
+  -d "$(jq -n --arg id "$SHOP_ID" --arg src staff --arg reason '監査テスト' \
+        '{shopId:$id, source:$src, reason:$reason}')" | jq .
+
+curl -sS -X DELETE "$BASE/casts/$CAST_ID/ngs/$SHOP_ID" \
+  -H "x-user-id: $STAFF_ID" | jq .
+`}</pre>
         </details>
       </main>
     </>
