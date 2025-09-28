@@ -1,206 +1,286 @@
 [
   {
     "title": "キックオフ／進行体制確定",
+    "owner": "PM",
+    "status": "In Progress",
     "started": true,
     "done": false,
-    "progress": 50,
-    "start": "2025-09-19",
-    "end": "2025-09-22"
-  },
-  {
-    "title": "品質・セキュリティ方針",
-    "started": true,
-    "done": false,
-    "progress": 50,
-    "start": "2025-09-19",
-    "end": "2025-09-22"
-  },
-  {
-    "title": "スケジュール・マイルストーン管理",
-    "started": true,
-    "done": false,
-    "progress": 50,
-    "start": "2025-09-19",
-    "end": "2025-09-22"
-  },
-  {
-    "title": "対象範囲確定",
-    "started": true,
-    "done": false,
-    "progress": 50,
+    "progress": 80,
     "start": "2025-09-19",
     "end": "2025-09-29"
   },
   {
-    "title": "画面要件定義（カード4項目・アイコン要確認）",
+    "title": "品質・セキュリティ方針",
+    "owner": "Platform",
+    "status": "In Progress",
+    "started": true,
+    "done": false,
+    "progress": 70,
+    "start": "2025-09-19",
+    "end": "2025-09-30"
+  },
+  {
+    "title": "対象範囲確定（年内MVP：エンド用／キャスト用）",
+    "owner": "PM",
+    "status": "In Progress",
+    "started": true,
+    "done": false,
+    "progress": 60,
+    "start": "2025-09-19",
+    "end": "2025-09-30"
+  },
+
+  // ===== Epic A: 認証／ID・パスワード運用（共通基盤） =====
+  {
+    "title": "A-1: DBマイグレーション適用（users/casts/password_reset_tokens）",
+    "owner": "Backend",
+    "status": "In Progress",
+    "started": true,
+    "done": false,
+    "progress": 30,
+    "start": "2025-09-28",
+    "end": "2025-10-01"
+  },
+  {
+    "title": "A-1-1: users.login_id を CI UNIQUE（citext）に変更",
+    "owner": "Backend",
+    "status": "In Progress",
+    "started": true,
+    "done": false,
+    "progress": 50,
+    "start": "2025-09-28",
+    "end": "2025-09-30"
+  },
+  {
+    "title": "A-1-2: casts.cast_code 追加（A000..A999→B000..／不変）",
+    "owner": "Backend",
+    "status": "Planned",
     "started": false,
     "done": false,
     "progress": 0,
-    "start": "2025-09-22",
-    "end": "2025-10-06"
+    "start": "2025-09-29",
+    "end": "2025-10-01"
   },
   {
-    "title": "LINE/LIFF導線要件（LINE公式依存）",
+    "title": "A-1-3: password_reset_tokens 新設（期限・使用済管理）",
+    "owner": "Backend",
+    "status": "Planned",
     "started": false,
     "done": false,
     "progress": 0,
-    "start": "2025-09-22",
-    "end": "2025-10-06"
+    "start": "2025-09-30",
+    "end": "2025-10-01"
   },
   {
-    "title": "データ移行要件定義（WP名簿DB・店舗Excel依存）",
+    "title": "A-2: cast_code 自動採番API（競合防止＆immutable）",
+    "owner": "Backend",
+    "status": "Planned",
     "started": false,
     "done": false,
     "progress": 0,
-    "start": "2025-09-22",
-    "end": "2025-10-06"
+    "start": "2025-10-01",
+    "end": "2025-10-03"
   },
   {
-    "title": "非機能要件整理",
+    "title": "A-3: パスワード再設定フロー（メール/LINE両対応）",
+    "owner": "Backend",
+    "status": "Planned",
     "started": false,
     "done": false,
     "progress": 0,
-    "start": "2025-09-22",
+    "start": "2025-10-02",
+    "end": "2025-10-05"
+  },
+  {
+    "title": "A-4: must_change_password フロー実装（初回/再発行時）",
+    "owner": "Frontend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-03",
     "end": "2025-10-06"
   },
   {
-    "title": "ERD/テーブル定義 v0→v1",
+    "title": "A-5: パスワードポリシー（英大/小/数字）UI+APIバリデーション",
+    "owner": "Frontend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-03",
+    "end": "2025-10-06"
+  },
+
+  // ===== Epic B: キャスト管理（拡張） =====
+  {
+    "title": "B-1: cast_attributes.drink_level 検索UI/API",
+    "owner": "Frontend",
+    "status": "Planned",
     "started": false,
     "done": false,
     "progress": 0,
     "start": "2025-10-06",
-    "end": "2025-10-13"
+    "end": "2025-10-09"
   },
   {
-    "title": "インデックス・MV設計",
+    "title": "B-2: cast_photos 複数写真＋並び替え（sort_order）",
+    "owner": "Frontend",
+    "status": "Planned",
     "started": false,
     "done": false,
     "progress": 0,
     "start": "2025-10-06",
-    "end": "2025-10-13"
+    "end": "2025-10-10"
   },
+
+  // ===== Epic C: 店舗要件・KPI =====
   {
-    "title": "API一覧 v1（REST）",
+    "title": "C-1: shop_requirements CRUD + 店舗詳細タブ",
+    "owner": "Frontend",
+    "status": "Planned",
     "started": false,
     "done": false,
     "progress": 0,
-    "start": "2025-10-06",
-    "end": "2025-10-13"
+    "start": "2025-10-09",
+    "end": "2025-10-12"
   },
   {
-    "title": "インフラ準備（VPS＋Postgres）",
+    "title": "C-2: KPIカード（必要人数/充足率）ダッシュボード",
+    "owner": "Frontend",
+    "status": "Planned",
     "started": false,
     "done": false,
     "progress": 0,
-    "start": "2025-10-13",
+    "start": "2025-10-12",
+    "end": "2025-10-15"
+  },
+
+  // ===== Epic D: 固定配属 =====
+  {
+    "title": "D-1: shop_fixed_casts CRUD + 優先表示ルール",
+    "owner": "Frontend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-15",
+    "end": "2025-10-18"
+  },
+
+  // ===== Epic E: シフト／出退勤 =====
+  {
+    "title": "E-1: 当日シフト read-only（GET /shifts）",
+    "owner": "Frontend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-09",
+    "end": "2025-10-11"
+  },
+  {
+    "title": "E-2: シフト承認（planned→approved）API＋UI",
+    "owner": "Frontend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-11",
+    "end": "2025-10-14"
+  },
+  {
+    "title": "E-3: 承認時の監査ログ記録（audit_logs.diff）",
+    "owner": "Backend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-14",
+    "end": "2025-10-15"
+  },
+  {
+    "title": "E-4: 出退勤 read-only（attendances）",
+    "owner": "Frontend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-15",
+    "end": "2025-10-18"
+  },
+
+  // ===== Epic F: 応募書類アップロード =====
+  {
+    "title": "F-1: /applications/:id/docs presign API",
+    "owner": "Backend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-12",
+    "end": "2025-10-14"
+  },
+  {
+    "title": "F-2: アップロードUI統合（進捗・再アップロード）",
+    "owner": "Frontend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-14",
+    "end": "2025-10-16"
+  },
+
+  // ===== Epic G: LINEリレー基盤（下地） =====
+  {
+    "title": "G-1: line_webhook_events 生ログ保存（重複対策）",
+    "owner": "Backend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-18",
     "end": "2025-10-20"
   },
   {
-    "title": "CI/CD構築（GitHub Actions）",
-    "started": false,
-    "done": false,
-    "progress": 0,
-    "start": "2025-10-13",
-    "end": "2025-10-20"
-  },
-  {
-    "title": "コーディング規約・枝分かれ",
-    "started": false,
-    "done": false,
-    "progress": 0,
-    "start": "2025-10-13",
-    "end": "2025-10-20"
-  },
-  {
-    "title": "認証・認可／LINE連携（LINE依存）",
+    "title": "G-2: line_messages 正規化（in/out/type/payload）",
+    "owner": "Backend",
+    "status": "Planned",
     "started": false,
     "done": false,
     "progress": 0,
     "start": "2025-10-20",
-    "end": "2025-10-27"
+    "end": "2025-10-22"
+  },
+
+  // ===== Epic H: ポータル整備／DevEx =====
+  {
+    "title": "H-1: 開発ポータルERD図／開発ルールの最新版反映",
+    "owner": "PM",
+    "status": "In Progress",
+    "started": true,
+    "done": false,
+    "progress": 40,
+    "start": "2025-09-28",
+    "end": "2025-09-30"
   },
   {
-    "title": "応募〜審査フロー実装（身分証データ取扱注意）",
-    "started": false,
+    "title": "H-2: /wbs 反映（タスク粒度・章立て更新）",
+    "owner": "Frontend",
+    "status": "In Progress",
+    "started": true,
     "done": false,
-    "progress": 0,
-    "start": "2025-10-20",
-    "end": "2025-10-27"
+    "progress": 40,
+    "start": "2025-09-28",
+    "end": "2025-09-30"
   },
-  {
-    "title": "勤怠（出退勤）実装",
-    "started": false,
-    "done": false,
-    "progress": 0,
-    "start": "2025-10-27",
-    "end": "2025-11-10"
-  },
-  {
-    "title": "スケジュール（シフト）実装",
-    "started": false,
-    "done": false,
-    "progress": 0,
-    "start": "2025-10-27",
-    "end": "2025-11-10"
-  },
-  {
-    "title": "NG/マッチング（ルールベース）",
-    "started": false,
-    "done": false,
-    "progress": 0,
-    "start": "2025-11-10",
-    "end": "2025-11-17"
-  },
-  {
-    "title": "ダッシュボード集計API",
-    "started": false,
-    "done": false,
-    "progress": 0,
-    "start": "2025-11-10",
-    "end": "2025-11-17"
-  },
-  {
-    "title": "チャット連携（Chatwoot）",
-    "started": false,
-    "done": false,
-    "progress": 0,
-    "start": "2025-11-17",
-    "end": "2025-11-24"
-  },
-  {
-    "title": "通知/SOS実装",
-    "started": false,
-    "done": false,
-    "progress": 0,
-    "start": "2025-11-17",
-    "end": "2025-11-24"
-  },
-  {
-    "title": "キャストPWA（出退勤/予定/プロフィール）",
-    "started": false,
-    "done": false,
-    "progress": 0,
-    "start": "2025-11-03",
-    "end": "2025-11-24"
-  },
-  {
-    "title": "管理Web（ダッシュボード/印刷）",
-    "started": false,
-    "done": false,
-    "progress": 0,
-    "start": "2025-11-03",
-    "end": "2025-11-24"
-  },
-  {
-    "title": "店舗画面（条件入力＋一覧）",
-    "started": false,
-    "done": false,
-    "progress": 0,
-    "start": "2025-11-10",
-    "end": "2025-11-24"
-  },
+
+  // ===== データ移行・テスト・リリース（現行計画に合わせ再配置） =====
   {
     "title": "データ受領（先方から依存）",
+    "owner": "PM",
+    "status": "In Progress",
     "started": true,
     "done": false,
     "progress": 50,
@@ -209,6 +289,8 @@
   },
   {
     "title": "マッピング／クリーニング",
+    "owner": "Backend",
+    "status": "Planned",
     "started": false,
     "done": false,
     "progress": 0,
@@ -217,6 +299,8 @@
   },
   {
     "title": "取込スクリプト／検証",
+    "owner": "Backend",
+    "status": "Planned",
     "started": false,
     "done": false,
     "progress": 0,
@@ -225,6 +309,8 @@
   },
   {
     "title": "単体テスト",
+    "owner": "QA",
+    "status": "Planned",
     "started": false,
     "done": false,
     "progress": 0,
@@ -233,6 +319,8 @@
   },
   {
     "title": "E2Eテスト",
+    "owner": "QA",
+    "status": "Planned",
     "started": false,
     "done": false,
     "progress": 0,
@@ -241,6 +329,8 @@
   },
   {
     "title": "性能テスト",
+    "owner": "QA",
+    "status": "Planned",
     "started": false,
     "done": false,
     "progress": 0,
@@ -249,6 +339,8 @@
   },
   {
     "title": "クロスブラウザ／レスポンシブ",
+    "owner": "Frontend",
+    "status": "Planned",
     "started": false,
     "done": false,
     "progress": 0,
@@ -257,6 +349,8 @@
   },
   {
     "title": "UAT（テストユーザー参加）",
+    "owner": "PM",
+    "status": "Planned",
     "started": false,
     "done": false,
     "progress": 0,
@@ -265,6 +359,8 @@
   },
   {
     "title": "監視・運用Runbook",
+    "owner": "Platform",
+    "status": "Planned",
     "started": false,
     "done": false,
     "progress": 0,
@@ -273,6 +369,8 @@
   },
   {
     "title": "管理者トレーニング",
+    "owner": "PM",
+    "status": "Planned",
     "started": false,
     "done": false,
     "progress": 0,
@@ -281,6 +379,8 @@
   },
   {
     "title": "本番デプロイ",
+    "owner": "Platform",
+    "status": "Planned",
     "started": false,
     "done": false,
     "progress": 0,
@@ -289,6 +389,8 @@
   },
   {
     "title": "リリースノート作成",
+    "owner": "PM",
+    "status": "Planned",
     "started": false,
     "done": false,
     "progress": 0,
