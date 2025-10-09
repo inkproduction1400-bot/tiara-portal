@@ -17,7 +17,7 @@ export default function ERD() {
               target="_blank"
               rel="noopener noreferrer"
             >
-              ✏️ Mermaid Live Editor（編集用）💡2025/09/25更新
+              ✏️ Mermaid Live Editor（編集用）💡2025/10/09更新
             </a>
           </li>
           <li>
@@ -26,7 +26,7 @@ export default function ERD() {
               target="_blank"
               rel="noopener noreferrer"
             >
-              👀 Mermaid Chart Playground（閲覧用）💡2025/09/25更新
+              👀 Mermaid Chart Playground（閲覧用）💡2025/10/09更新
             </a>
           </li>
         </ul>
