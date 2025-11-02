@@ -1,0 +1,5381 @@
+This file is a merged representation of a subset of the codebase, containing files not matching ignore patterns, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching these patterns are excluded: node_modules/**, .next/**, .vercel/**, dist/**, .turbo/**, .git/**, .DS_Store, *.log, *.lock, coverage/**, playwright-report/**
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.github/
+  workflows/
+    api-smoke.yml
+app/
+  dev/
+    docs/
+      [[...slug]]/
+        page.tsx
+      page.tsx
+    page.tsx
+content/
+  docs/
+    runbooks/
+      local-smoke.md
+    assignments.md
+    index.md
+docs/
+  openapi.yaml
+lib/
+  audit.ts
+  db.ts
+  mdx.ts
+  supabaseServer.ts
+  tasksLoader.ts
+  validate.ts
+pages/
+  api/
+    casts/
+      [id].ts
+      index.ts
+    questionnaire/
+      [kind]/
+        load.ts
+        save.ts
+    shifts/
+      [id].ts
+      index.ts
+    stores/
+      index.ts
+    webhooks/
+      chatwoot.ts
+      line.ts
+    health.ts
+    tasks.ts
+  docs/
+    coding-rules.tsx
+    openapi.yaml
+  _app.tsx
+  actions.tsx
+  casts.tsx
+  erd.tsx
+  index.tsx
+  progress.tsx
+  questionnaire.tsx
+  rules.tsx
+  wbs.tsx
+public/
+  data/
+    tasks.json
+  docs/
+    WBS.xlsx
+    質問票ドラフト.numbers
+scripts/
+  seed.ts
+  test-api.sh
+styles/
+  globals.css
+supabase/
+  .temp/
+    cli-latest
+    gotrue-version
+    pooler-url
+    postgres-version
+    project-ref
+    rest-version
+    storage-version
+  migrations/
+    0001_init.sql
+    0002_unique_cast_name.sql
+    0003_mvp_plus_columns.sql
+    0004_rls_minimal.sql
+    0005_shift_search_indexes.sql
+    0006_shifts_status_check_add_canceled.sql
+    20250921051301_unique_shift_cast_start.sql
+    20250921051302_unique_store_name.sql
+    20250921055945_audit_logs.sql
+    20250921061332_audit_logs_add_ip_useragent.sql
+    20250921090304_rls_strict_all_deny.sql
+    20250921091553_rls_strict_all_deny.sql
+.gitignore
+next-env.d.ts
+package.json
+README.md
+tsconfig.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="content/docs/assignments.md">
+# Assignments API 検証ドキュメント
+
+Tiara API における「キャストのアサイン（出勤予定・割当）」機能の検証手順です。  
+NestJS + Prisma にて実装され、`shops/:shopId/assignments` 配下にルーティングされています。
+
+---
+
+## 📘 1. 概要
+
+| 要素 | 内容 |
+|------|------|
+| ベースパス | `/api/v1/shops/:shopId/assignments` |
+| 対象モデル | `ShopAssignment` |
+| 主キー | `id` (UUID) |
+| ユニーク制約 | `(shopId, castId, assignedFrom)` |
+| ステータス | `planned / assigned / working / completed / cancelled` |
+| 認可 | `x-user-id` ヘッダ必須（admin または staff ロール） |
+
+---
+
+## ⚙️ 2. 前提
+
+以下の変数を環境に設定しておきます。
+
+```bash
+USER_ID=<管理者の UUID>   # admin@example.com のID
+SHOP_ID=<店舗ID>
+CAST_ID=<キャストID>
+API=http://localhost:4001
+DATE=$(date -u +%F)
+環境変数を .env から読みたい場合は次のようにします：
+
+bash
+コードをコピーする
+alias DENV='npx dotenv -e .env --'
+USER_ID=$(DENV bash -lc 'psql "$OWNER_DATABASE_URL" -At -c "SELECT id FROM users WHERE email='\''admin@example.com'\'' LIMIT 1;"')
+🧱 3. 新規アサイン作成 (POST)
+エンドポイント
+POST /api/v1/shops/:shopId/assignments
+
+リクエスト例
+bash
+コードをコピーする
+curl -sS -X POST "$API/api/v1/shops/$SHOP_ID/assignments" \
+  -H "x-user-id: $USER_ID" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"castId\": \"$CAST_ID\",
+    \"assignedFrom\": \"${DATE}T19:00:00Z\",
+    \"priority\": 1
+  }" | jq .
+成功レスポンス例
+json
+コードをコピーする
+{
+  "id": "7b4784b8-3fea-42ee-803c-6d2b2b4ca20e",
+  "shopId": "dcb32f1b-ccc4-4f90-868d-0f90e04f32fe",
+  "castId": "3fc8eebf-9699-4bae-a98b-218b66df1e15",
+  "assignedFrom": "2025-11-01T19:00:00.000Z",
+  "assignedTo": null,
+  "status": "planned",
+  "priority": 1,
+  "createdAt": "2025-11-01T12:18:04.210Z",
+  "updatedAt": "2025-11-01T12:18:04.210Z"
+}
+エラー例（重複スロット）
+同一 shopId + castId + assignedFrom で再度 POST すると：
+
+bash
+コードをコピーする
+HTTP/1.1 409 Conflict
+{
+  "message": "Duplicate slot for this shop/cast/assignedFrom",
+  "error": "Conflict",
+  "statusCode": 409
+}
+🔍 4. 一覧取得 (GET)
+エンドポイント
+GET /api/v1/shops/:shopId/assignments?date=YYYY-MM-DD
+
+リクエスト例
+bash
+コードをコピーする
+curl -sS "$API/api/v1/shops/$SHOP_ID/assignments?date=$DATE" \
+  -H "x-user-id: $USER_ID" | jq .
+成功レスポンス例
+json
+コードをコピーする
+[
+  {
+    "id": "7539f313-aa95-4c1a-b4bc-e72083b24fd8",
+    "shopId": "dcb32f1b-ccc4-4f90-868d-0f90e04f32fe",
+    "castId": "3fc8eebf-9699-4bae-a98b-218b66df1e15",
+    "assignedFrom": "2025-11-01T18:00:00.000Z",
+    "status": "planned",
+    "priority": 1
+  },
+  {
+    "id": "7b4784b8-3fea-42ee-803c-6d2b2b4ca20e",
+    "shopId": "dcb32f1b-ccc4-4f90-868d-0f90e04f32fe",
+    "castId": "3fc8eebf-9699-4bae-a98b-218b66df1e15",
+    "assignedFrom": "2025-11-01T19:00:00.000Z",
+    "assignedTo": "2025-11-01T21:00:00.000Z",
+    "status": "assigned",
+    "priority": 3
+  }
+]
+✏️ 5. 更新 (PATCH)
+エンドポイント
+PATCH /api/v1/shops/:shopId/assignments/:id
+
+更新項目
+priority（整数）
+
+status（planned / assigned / working / completed / cancelled）
+
+assignedTo（日時）
+
+例1: ステータスと優先度を更新
+bash
+コードをコピーする
+ASSIGN_ID=<POSTで得たid>
+
+curl -sS -X PATCH "$API/api/v1/shops/$SHOP_ID/assignments/$ASSIGN_ID" \
+  -H "x-user-id: $USER_ID" -H "Content-Type: application/json" \
+  -d '{"priority":3,"status":"assigned"}' | jq .
+結果：
+
+json
+コードをコピーする
+{
+  "id": "7b4784b8-3fea-42ee-803c-6d2b2b4ca20e",
+  "status": "assigned",
+  "priority": 3
+}
+例2: 終了時刻を付与
+bash
+コードをコピーする
+curl -sS -X PATCH "$API/api/v1/shops/$SHOP_ID/assignments/$ASSIGN_ID" \
+  -H "x-user-id: $USER_ID" -H "Content-Type: application/json" \
+  -d "{\"assignedTo\":\"${DATE}T21:00:00Z\"}" | jq .
+🚫 6. エラー仕様一覧
+ステータス	意味	対応方法
+400	ValidationPipe によるリクエスト不正	型・必須パラメータを確認
+401	x-user-id ヘッダがない	ヘッダを追加する
+403	ロール不一致 (required roles: admin, staff)	ユーザに admin or staff ロールを付与
+404	不存在のショップ/アサインID	ID誤り
+409	ユニーク制約違反	同一スロット重複。PATCH で更新する
+500	Prisma例外など内部エラー	docker compose logs api でスタック確認
+
+🧩 7. Swagger UI 確認
+環境	URL
+開発	http://localhost:4001/docs
+本番パス検証	http://localhost:4001/api/v1/docs
+
+Swagger 上で shops/{shopId}/assignments を開き、
+Try it out → Execute を押下して POST / GET / PATCH を順に確認できます。
+
+💡 8. 補足Tips
+8.1 便利なシェル関数
+よく使う操作をシェルスクリプト化しておくと便利です。
+
+bash
+コードをコピーする
+# scripts/assignments.sh (抜粋)
+post_assign () {
+  local date="$1" time="$2" prio="${3:-1}"
+  curl -sS -X POST "$API/api/v1/shops/$SHOP_ID/assignments" \
+    -H "x-user-id: $USER_ID" -H "Content-Type: application/json" \
+    -d "{\"castId\":\"$CAST_ID\",\"assignedFrom\":\"${date}T${time}\",\"priority\":${prio}}" | jq .
+}
+
+list_assign () {
+  local date="$1"
+  curl -sS "$API/api/v1/shops/$SHOP_ID/assignments?date=$date" \
+    -H "x-user-id: $USER_ID" | jq .
+}
+
+patch_assign () {
+  local id="$1" payload="$2"
+  curl -sS -X PATCH "$API/api/v1/shops/$SHOP_ID/assignments/$id" \
+    -H "x-user-id: $USER_ID" -H "Content-Type: application/json" \
+    -d "$payload" | jq .
+}
+呼び出し例：
+
+bash
+コードをコピーする
+. scripts/assignments.sh
+DATE=$(date -u +%F)
+post_assign "$DATE" "19:00:00Z" 2
+list_assign "$DATE"
+✅ 9. 想定テストシナリオ
+No	テスト内容	期待結果
+1	新規アサイン（初回POST）	201 Created
+2	同一条件で再POST	409 Conflict
+3	PATCHでstatus更新	200 OK, status変更反映
+4	PATCHでassignedTo追加	200 OK, 終了時刻反映
+5	GETで両件取得	2件出力（18時/19時）
+6	x-user-idなしでPOST	401 Unauthorized
+7	一般ユーザでPOST	403 Forbidden
+8	不正なUUID指定	400 Bad Request
+
+🧾 10. 参考
+NestJS Controller: src/assignments/assignments.controller.ts
+
+Prisma Model: prisma/schema.prisma → model ShopAssignment
+
+Business Logic: src/assignments/assignments.service.ts
+
+Error Handling: P2002 (unique constraint) → 409 Conflict
+
+© 2025 Tiara API Development Team / Nagai
+
+yaml
+コードをコピーする
+
+---
+
+これを `docs/assignments.md` としてプロジェクトに追加すれば、  
+APIテスト担当者・後続開発者がすぐ再現できる完全な Runbook として機能します。
+</file>
+
+<file path="content/docs/index.md">
+# Tiara API 開発ポータル
+
+ようこそ！ここは Tiara API リポジトリの開発者向けポータルです。  
+日々の開発で「最初に開く場所」を想定しています。
+
+---
+
+## 目次
+
+- 👟 クイックスタート
+- 🧰 よく使う資料
+- 🧪 スモークテスト（ローカル）
+- 🧾 運用ノート / ランブック
+- 🛠 スクリプトと Make ターゲット
+- 🧱 スキーマ / マイグレーション
+- 🧭 API ドキュメント（Swagger）
+
+---
+
+## 👟 クイックスタート
+
+1. `.env` を準備（DB / API ポート等）
+2. 管理者ロールを初期化  
+   ```bash
+   make bootstrap
+起動
+
+bash
+コードをコピーする
+make up
+動作確認（スモーク）
+
+bash
+コードをコピーする
+make smoke
+参考：初期化や一連の確認手順は ローカルスモーク・ランブック に詳細あり。
+
+🧰 よく使う資料
+🗂 Assignments 機能の仕様と確認手順 → docs/assignments.md
+
+🧪 ローカルスモーク・ランブック → docs/runbooks/local-smoke.md
+
+🧪 スモークテスト（ローカル）
+最低限の健康チェックとルーティング確認：
+
+bash
+コードをコピーする
+make up
+make smoke
+/api/v1/health が ok: true を返す
+
+Nest のログに Mapped {/api/v1/shops/:shopId/assignments, ...} が出ている
+
+詳細な手順（SHOP/CAST 作成、割当の POST/LIST/PATCH など）は
+ローカルスモーク・ランブック を参照。
+
+🧾 運用ノート / ランブック
+ローカル環境でのスモーク手順 → runbooks/local-smoke.md
+
+（将来）ステージング/本番のローンチ手順 → runbooks/launch-stg.md / runbooks/launch-prod.md
+
+（将来）障害対応メモ → runbooks/incidents.md
+
+ランブックは**「失敗を再現できるほど具体的に」**書くのが鉄則です。
+例：使ったコマンド、環境変数、期待結果、実結果、ログの抜粋、次の分岐…まで。
+
+🛠 スクリプトと Make ターゲット
+スクリプト
+scripts/assignments.sh
+
+post / list / patch を関数化。x-user-id は自動で admin@example.com の ID を解決
+
+例：
+
+bash
+コードをコピーする
+./scripts/assignments.sh post "$SHOP_ID" "$CAST_ID" "2025-11-01T18:00:00Z" 1
+./scripts/assignments.sh list "$SHOP_ID" "2025-11-01"
+./scripts/assignments.sh patch "$SHOP_ID" "$ASSIGN_ID" status=assigned priority=3 assignedTo=2025-11-01T21:00:00Z
+scripts/bootstrap-role-admin.sql
+
+roles の admin/staff 作成、admin@example.com の作成と admin 付与
+
+Make ターゲット（抜粋）
+text
+コードをコピーする
+make build        # nest build
+make up           # build + docker compose up -d
+make logs         # 直近ログ
+make down         # 停止
+make bootstrap    # admin 付与（OWNER_DATABASE_URL 必須）
+make smoke        # 最小スモーク（health / assignments ルート）
+make assign-post  # アサイン作成（FROM など変数で指定）
+make assign-list  # 指定日の一覧
+make assign-patch # 既存アサインの更新
+詳細な引数や例は ローカルスモーク・ランブック を参照。
+
+🧱 スキーマ / マイグレーション
+Prisma スキーマ：prisma/schema.prisma
+
+DB 変更は 必ず Prisma Migration 経由で行い、migrate deploy を適用
+
+Neon(本番) では OWNER と APP の接続文字列の違いに注意（権限 & _prisma_migrations の有無）
+
+🧭 API ドキュメント（Swagger）
+開発: http://localhost:4000/docs
+
+本番: https://<your-host>/api/v1/docs
+
+本体は api/v1 のグローバルプレフィックス。
+Swagger の Servers に / と /api/v1 を両方登録済みです。
+
+yaml
+コードをコピーする
+
+---
+
+## どう「リンクさせるか」（ポイントだけ）
+
+- **相対リンク**を使えば GitHub 上でそのまま機能します。  
+  例：`[ローカルスモーク](./runbooks/local-smoke.md)`、`[Assignments](./assignments.md)` のように **`./`** から始める。
+- 既に作成済みの  
+  - `docs/assignments.md`  
+  - `docs/runbooks/local-smoke.md`  
+  とパス/ファイル名を**一致**させてください（フォルダ名/大文字小文字のズレに注意）。
+
+---
+
+## おまけ（任意：GitHub Pages で公開したい場合）
+
+GitHub の「Settings → Pages」で **Source: GitHub Actions** を選び、以下のワークフローで `docs/` を静的公開できます（Markdown → そのまま配信）。
+
+`.github/workflows/pages.yml`
+
+```yml
+name: Publish docs to GitHub Pages
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/pages.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
+これで https://<org>.github.io/<repo>/ に docs/ 直下が出ます。
+もし将来 MkDocs などでナビゲーションや検索を付けたい場合は、そのときに mkdocs.yml を追加すれば OK。
+
+仕上げチェックリスト
+docs/index.md を上のコードで作成
+
+docs/assignments.md / docs/runbooks/local-smoke.md が存在することを確認
+
+README.md の先頭近くに「開発ポータル → docs/index.md」へのリンクを1行追加
+
+md
+コードをコピーする
+👉 開発者向けポータルは **[docs/index.md](./docs/index.md)** を参照
+git add docs && git commit -m "docs: add dev portal and link runbooks" → push
+</file>
+
+<file path="lib/mdx.ts">
+// lib/mdx.ts
+import { compileMDX } from 'next-mdx-remote/rsc';
+import remarkGfm from 'remark-gfm';
+import rehypeSlug from 'rehype-slug';
+import rehypeAutolinkHeadings from 'rehype-autolink-headings';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+
+export async function loadDoc(slugParts: string[]) {
+  const rel = path.join('content', 'docs', ...slugParts) + (slugParts.at(-1)?.endsWith('.md') ? '' : '.md');
+  const abs = path.join(process.cwd(), rel);
+  const source = await fs.readFile(abs, 'utf8');
+  const { content } = await compileMDX({
+    source,
+    options: {
+      parseFrontmatter: true,
+      mdxOptions: {
+        remarkPlugins: [remarkGfm],
+        rehypePlugins: [rehypeSlug, [rehypeAutolinkHeadings, { behavior: 'wrap' }]],
+      },
+    },
+  });
+  return content;
+}
+</file>
+
+<file path="lib/db.ts">
+import { createClient } from '@supabase/supabase-js';
+
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!url || !anon) {
+  throw new Error('Supabase env missing: set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local');
+}
+
+export const supabase = createClient(url, anon, { auth: { persistSession: false } });
+export const supabaseAdmin = service
+  ? createClient(url, service, { auth: { persistSession: false } })
+  : null;
+</file>
+
+<file path="lib/supabaseServer.ts">
+// /lib/supabaseServer.ts
+import { createClient } from "@supabase/supabase-js";
+
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+// APIルート専用（サーバーのみ）クライアント
+export const supabaseAdmin = createClient(url, serviceRoleKey, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
+</file>
+
+<file path="lib/tasksLoader.ts">
+// lib/tasksLoader.ts
+export type Task = {
+    title: string;
+    start?: string;   // YYYY-MM-DD
+    end?: string;     // YYYY-MM-DD
+    started?: boolean;
+    done?: boolean;
+    progress?: number; // 0..100
+    owner?: string;
+    status?: string;
+  };
+  
+  export async function loadTasks(): Promise<Task[]> {
+    try {
+      const r = await fetch('/api/tasks');
+      if (r.ok) {
+        const json = await r.json();
+        return Array.isArray(json?.tasks) ? json.tasks : Array.isArray(json) ? json : [];
+      }
+    } catch {}
+    const r2 = await fetch('/data/tasks.json');
+    return await r2.json();
+  }
+</file>
+
+<file path="lib/validate.ts">
+// lib/validate.ts
+import { z } from 'zod';
+
+export const pageSchema = z.object({
+  page:  z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(30),
+  sort:  z.string().optional(),
+});
+
+export const dateRangeSchema = z.object({
+  from: z.string().datetime().optional(),
+  to:   z.string().datetime().optional(),
+});
+
+export const shiftsQuerySchema = pageSchema
+  .merge(dateRangeSchema)
+  .extend({
+    store_id: z.string().uuid().optional(),
+    cast_id:  z.string().uuid().optional(),
+    status:   z.enum(['scheduled','confirmed','canceled','finished']).optional(),
+    role:     z.enum(['cast']).optional(),
+    expand:   z.enum(['names']).optional(),
+  });
+
+export const castsQuerySchema = pageSchema.extend({
+  keyword:   z.string().optional(),
+  owner:     z.string().optional(),
+  genre:     z.string().optional(),
+  drinkable: z.coerce.boolean().optional(),
+  wage_min:  z.coerce.number().optional(),
+  active:    z.coerce.boolean().optional(),
+  sort:      z.string().optional(), // 例: "rating,wage,name"
+});
+
+export const storesQuerySchema = pageSchema.extend({
+  keyword: z.string().optional(),
+  active:  z.coerce.boolean().optional(),
+  sort:    z.string().optional(),
+});
+
+// 統一エラーレスポンス
+export type ApiError = { ok:false; code:'VALIDATION_ERROR'|'DB_ERROR'|'INTERNAL_ERROR'; message:string };
+export const err = (code:ApiError['code'], message:string):ApiError => ({ ok:false, code, message });
+</file>
+
+<file path="pages/api/casts/[id].ts">
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { supabaseAdmin as supabase } from '@/lib/db';
+import { z } from 'zod';
+
+type ApiError = {
+  ok: false;
+  code: 'VALIDATION_ERROR' | 'DB_ERROR' | 'INTERNAL_ERROR';
+  message: string;
+};
+const bad = (code: ApiError['code'], message: string, status = 400) => ({
+  status,
+  body: { ok: false, code, message } as ApiError,
+});
+
+// 部分更新用スキーマ（全部オプショナル）
+const CastPatch = z
+  .object({
+    store_id: z.string().uuid().optional(),
+    name: z.string().min(1).optional(),
+    nickname: z.string().optional(),
+    wage: z.number().int().min(0).nullable().optional(),
+    rating: z.number().min(0).max(5).nullable().optional(),
+    genre: z.array(z.string()).nullable().optional(),
+    drinkable: z.boolean().nullable().optional(),
+    owner: z.string().nullable().optional(),
+    active: z.boolean().optional(),
+    // ほか将来カラムが来ても落ちないように strict
+  })
+  .strict()
+  .refine((obj) => Object.keys(obj).length > 0, {
+    message: 'empty body',
+  });
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!supabase) {
+    const e = bad('INTERNAL_ERROR', 'Service role is not configured', 500);
+    return res.status(e.status).json(e.body);
+  }
+  if (req.method !== 'PATCH') {
+    const e = bad('VALIDATION_ERROR', 'Method Not Allowed', 405);
+    return res.status(e.status).json(e.body);
+  }
+
+  const { id } = req.query as { id?: string };
+  if (!id) {
+    const e = bad('VALIDATION_ERROR', 'id is required', 400);
+    return res.status(e.status).json(e.body);
+  }
+
+  // 入力バリデ
+  const parsed = CastPatch.safeParse(req.body);
+  if (!parsed.success) {
+    const e = bad('VALIDATION_ERROR', JSON.stringify(parsed.error.issues, null, 2), 400);
+    return res.status(e.status).json(e.body);
+  }
+  const patch = parsed.data;
+
+  // 対象存在チェック（404）
+  const { data: existing, error: exErr } = await supabase
+    .from('casts')
+    .select('id, store_id, name')
+    .eq('id', id)
+    .maybeSingle();
+  if (exErr) {
+    const e = bad('DB_ERROR', exErr.message, 500);
+    return res.status(e.status).json(e.body);
+  }
+  if (!existing) {
+    const e = bad('VALIDATION_ERROR', 'cast not found', 404);
+    return res.status(e.status).json(e.body);
+  }
+
+  // store_id を変更する場合は stores の存在もチェック（404）
+  if (patch.store_id) {
+    const { data: st, error: stErr } = await supabase
+      .from('stores')
+      .select('id')
+      .eq('id', patch.store_id)
+      .maybeSingle();
+    if (stErr) {
+      const e = bad('DB_ERROR', stErr.message, 500);
+      return res.status(e.status).json(e.body);
+    }
+    if (!st) {
+      const e = bad('VALIDATION_ERROR', 'store not found', 404);
+      return res.status(e.status).json(e.body);
+    }
+  }
+
+  // 更新（UNIQUE (store_id, name) 衝突は 409）
+  const { data, error } = await supabase
+    .from('casts')
+    .update(patch)
+    .eq('id', id)
+    .select('*')
+    .single();
+
+  if (error) {
+    if ((error as any).code === '23505') {
+      return res
+        .status(409)
+        .json({ ok: false, code: 'DB_ERROR', message: 'duplicate cast (store_id,name)' });
+    }
+    const e = bad('DB_ERROR', error.message, 500);
+    return res.status(e.status).json(e.body);
+  }
+
+  return res.status(200).json({ ok: true, item: data });
+}
+</file>
+
+<file path="pages/api/questionnaire/[kind]/load.ts">
+// pages/api/questionnaire/[kind]/load.ts
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { createClient } from '@supabase/supabase-js';
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== 'GET') return res.status(405).json({ ok: false, error: 'Method Not Allowed' });
+
+  const { kind } = req.query; // 'schema' | 'answers'
+  if (kind !== 'schema' && kind !== 'answers') return res.status(400).json({ ok: false, error: 'invalid kind' });
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) return res.status(400).json({ ok: false, error: 'Supabase未設定' });
+
+  const supabase = createClient(url, key, { auth: { persistSession: false } });
+
+  const { data, error } = await supabase
+    .from('questionnaire_store')                      // A案：新テーブル。B案なら questionnaire_answers
+    .select('*')
+    .eq('page_key', 'questionnaire')
+    .eq('kind', kind as string)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) return res.status(500).json({ ok: false, error: error.message });
+  return res.status(200).json({ ok: true, data });
+}
+</file>
+
+<file path="pages/api/questionnaire/[kind]/save.ts">
+// pages/api/questionnaire/[kind]/save.ts
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { createClient } from '@supabase/supabase-js';
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Method Not Allowed' });
+
+  const { kind } = req.query; // 'schema' | 'answers'
+  if (kind !== 'schema' && kind !== 'answers') return res.status(400).json({ ok: false, error: 'invalid kind' });
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) return res.status(400).json({ ok: false, error: 'Supabase未設定' });
+
+  const body = req.body || {};
+  const supabase = createClient(url, key, { auth: { persistSession: false } });
+
+  const { data, error } = await supabase
+    .from('questionnaire_store')                      // B案を選ぶなら questionnaire_answers に変更
+    .insert({
+      page_key: 'questionnaire',
+      kind: kind as string,
+      version: body.version ?? 'v1',
+      author: body.author ?? null,
+      data: body.data,                                // 回答 or スキーマの JSON
+    })
+    .select()
+    .single();
+
+  if (error) return res.status(500).json({ ok: false, error: error.message });
+  return res.status(200).json({ ok: true, data });
+}
+</file>
+
+<file path="pages/api/shifts/[id].ts">
+// /pages/api/shifts/[id].ts
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { supabaseAdmin as supabase } from '@/lib/db';
+
+const STATUSES = new Set(['scheduled','confirmed','finished','canceled']);
+const ROLES = new Set(['cast','manager','other']);
+
+function parseDate(v?: string) {
+  if (!v) return undefined;
+  const t = Date.parse(v);
+  return Number.isNaN(t) ? undefined : new Date(t).toISOString();
+}
+
+async function logAudit(action: string, payload: any, entity_id?: string) {
+  try {
+    await supabase!.from('audit_logs').insert({
+      actor: 'api',
+      action,
+      entity: 'shift',
+      entity_id: entity_id ?? null,
+      payload,
+    });
+  } catch {}
+}
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!supabase) return res.status(500).json({ ok: false, error: 'Service role is not configured' });
+  const { id } = req.query as { id: string };
+
+  if (req.method !== 'PATCH') {
+    return res.status(405).json({ ok: false, error: 'Method Not Allowed' });
+  }
+
+  const {
+    status,         // optional
+    starts_at,      // optional
+    ends_at,        // optional
+    store_id,       // optional
+    memo,           // optional
+    pay_rate,       // optional
+    role,           // optional
+  } = (req.body ?? {}) as Record<string, any>;
+
+  // 存在確認
+  const { data: ex, error: exErr } = await supabase.from('shifts').select('id').eq('id', id).maybeSingle();
+  if (exErr) return res.status(500).json({ ok: false, error: exErr.message });
+  if (!ex) return res.status(404).json({ ok: false, error: 'shift not found' });
+
+  // 最小バリデーション
+  const patch: any = {};
+  if (status !== undefined) {
+    if (!STATUSES.has(status)) return res.status(400).json({ ok: false, error: 'invalid status' });
+    patch.status = status;
+    patch.canceled_at = status === 'canceled' ? new Date().toISOString() : null;
+  }
+  if (role !== undefined) {
+    if (!ROLES.has(role)) return res.status(400).json({ ok: false, error: 'invalid role' });
+    patch.role = role;
+  }
+  if (starts_at !== undefined) {
+    const s = parseDate(starts_at);
+    if (!s) return res.status(400).json({ ok: false, error: 'starts_at must be ISO date' });
+    patch.starts_at = s;
+  }
+  if (ends_at !== undefined) {
+    const e = parseDate(ends_at);
+    if (ends_at && !e) return res.status(400).json({ ok: false, error: 'ends_at must be ISO date' });
+    patch.ends_at = e ?? null;
+  }
+  if (store_id !== undefined) patch.store_id = store_id ?? null;
+  if (memo !== undefined) patch.memo = memo ?? null;
+  if (pay_rate !== undefined) patch.pay_rate = pay_rate ?? null;
+
+  try {
+    const { data, error } = await supabase.from('shifts').update(patch).eq('id', id).select('*').single();
+    if (error) return res.status(500).json({ ok: false, error: error.message });
+
+    await logAudit('patch_shift', { id, body: req.body }, id);
+    return res.status(200).json({ ok: true, item: data });
+  } catch (e: any) {
+    await logAudit('error_shift_patch', { id, error: String(e), body: req.body }, id);
+    return res.status(500).json({ ok: false, error: e?.message ?? 'unknown error' });
+  }
+}
+</file>
+
+<file path="pages/api/health.ts">
+// pages/api/health.ts
+import type { NextApiRequest, NextApiResponse } from 'next';
+
+export default function handler(_req: NextApiRequest, res: NextApiResponse) {
+  res.status(200).json({ ok: true, time: new Date().toISOString() });
+}
+</file>
+
+<file path="pages/api/tasks.ts">
+// pages/api/tasks.ts
+import type { NextApiRequest, NextApiResponse } from "next";
+import { supabaseAdmin } from "../../lib/supabaseServer";
+
+type Task = {
+  title: string;
+  start?: string;   // YYYY-MM-DD
+  end?: string;
+  started?: boolean;
+  done?: boolean;
+  progress?: number;
+  row_index?: number; // 表示順固定用
+};
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  try {
+    if (req.method === "GET") {
+      // 並び順は row_index → start → title の優先順位で固定
+      const { data, error } = await supabaseAdmin
+        .from("tasks")
+        .select("*")
+        .order("row_index", { ascending: true, nullsFirst: false })
+        .order("start", { ascending: true, nullsFirst: false })
+        .order("title", { ascending: true });
+
+      if (error) throw error;
+
+      const payload = (data || []).map((r: any) => ({
+        title: r.title,
+        start: r.start || "",
+        end: r.end || "",
+        started: !!r.started,
+        done: !!r.done,
+        progress: r.progress ?? 0,
+        row_index: r.row_index ?? null,
+      }));
+
+      return res.status(200).json(payload);
+    }
+
+    if (req.method === "POST") {
+      const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+      const arrRaw: Task[] = Array.isArray(body) ? body : [];
+
+      // 軽い正規化（titleのtrim、空文字は除外）
+      const arr: Task[] = arrRaw
+        .map((t) => ({ ...t, title: (t.title ?? "").trim() }))
+        .filter((t) => t.title.length > 0);
+
+      // 既存タイトル一覧を取得（完全同期のため）
+      const { data: existing, error: exErr } = await supabaseAdmin.from("tasks").select("title");
+      if (exErr) throw exErr;
+      const existingTitles = new Set((existing || []).map((x: any) => x.title));
+
+      // upsert（row_index 未指定は配列順で採番）
+      if (arr.length) {
+        const upsertPayload = arr.map((t, i) => ({
+          title: t.title,
+          start: t.start || null,
+          end: t.end || null,
+          started: !!t.started,
+          done: !!t.done,
+          progress: t.progress ?? 0,
+          row_index: typeof t.row_index === "number" ? t.row_index : i + 1,
+          updated_at: new Date().toISOString(),
+        }));
+
+        const { error: upsertError } = await supabaseAdmin
+          .from("tasks")
+          .upsert(upsertPayload, { onConflict: "title" }); // title に UNIQUE 制約前提
+
+        if (upsertError) throw upsertError;
+      }
+
+      // 送られてこなかったタイトルは削除（完全同期）
+      const incomingTitles = new Set(arr.map((t) => t.title));
+      const toDelete = [...existingTitles].filter((t) => !incomingTitles.has(t));
+      if (toDelete.length) {
+        const { error: delErr } = await supabaseAdmin
+          .from("tasks")
+          .delete()
+          .in("title", toDelete);
+        if (delErr) throw delErr;
+      }
+
+      return res.status(200).json({ ok: true });
+    }
+
+    res.setHeader("Allow", "GET, POST");
+    return res.status(405).end();
+  } catch (e: any) {
+    console.error(e);
+    return res.status(500).json({ error: e.message || "Internal Server Error" });
+  }
+}
+</file>
+
+<file path="pages/docs/openapi.yaml">
+openapi: 3.0.3
+info:
+  title: Tiara Portal API
+  version: 0.1.0
+servers:
+  - url: http://localhost:3000
+paths:
+  /api/casts:
+    get:
+      summary: List casts
+      parameters:
+        - in: query; name: page; schema: { type: integer, minimum: 1, default: 1 }
+        - in: query; name: limit; schema: { type: integer, minimum: 1, maximum: 100, default: 30 }
+        - in: query; name: keyword; schema: { type: string }
+        - in: query; name: owner; schema: { type: string }
+        - in: query; name: genre; schema: { type: string }
+        - in: query; name: drinkable; schema: { type: boolean }
+        - in: query; name: wage_min; schema: { type: number }
+        - in: query; name: sort; schema: { type: string }
+      responses:
+        "200": { description: OK }
+        "400": { description: Validation error }
+  /api/stores:
+    get:
+      summary: List stores
+      parameters:
+        - in: query; name: page; schema: { type: integer, default: 1 }
+        - in: query; name: limit; schema: { type: integer, default: 30 }
+        - in: query; name: keyword; schema: { type: string }
+        - in: query; name: active; schema: { type: boolean }
+        - in: query; name: sort; schema: { type: string }
+      responses:
+        "200": { description: OK }
+        "400": { description: Validation error }
+  /api/shifts:
+    get:
+      summary: List shifts
+      parameters:
+        - in: query; name: page; schema: { type: integer, default: 1 }
+        - in: query; name: limit; schema: { type: integer, default: 30 }
+        - in: query; name: sort; schema: { type: string }
+        - in: query; name: store_id; schema: { type: string, format: uuid }
+        - in: query; name: cast_id;  schema: { type: string, format: uuid }
+        - in: query; name: status;   schema: { type: string, enum: [scheduled, confirmed, canceled, finished] }
+        - in: query; name: role;     schema: { type: string, enum: [cast] }
+        - in: query; name: from;     schema: { type: string, format: date-time }
+        - in: query; name: to;       schema: { type: string, format: date-time }
+        - in: query; name: expand;   schema: { type: string, enum: [names] }
+      responses:
+        "200": { description: OK }
+        "400": { description: Validation error }
+</file>
+
+<file path="pages/_app.tsx">
+import type { AppProps } from "next/app";
+import "../styles/globals.css";
+
+export default function App({ Component, pageProps }: AppProps) {
+  return <Component {...pageProps} />;
+}
+</file>
+
+<file path="pages/casts.tsx">
+// pages/casts.tsx
+import { useEffect, useState } from 'react';
+
+type Cast = {
+  id: string;
+  name: string;
+  nickname?: string;
+  wage?: number;
+  rating?: number;
+  genre?: string[];
+  drinkable?: boolean;
+  owner?: string;
+  active?: boolean;
+};
+
+export default function CastsPage() {
+  const [list, setList] = useState<Cast[]>([]);
+  const [keyword, setKeyword] = useState('');
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const url = `/api/casts?limit=50${keyword ? `&keyword=${encodeURIComponent(keyword)}` : ''}`;
+    fetch(url, { signal: controller.signal })
+      .then((r) => r.json())
+      .then((j) => setList(j.data ?? []))
+      .catch(() => {});
+    return () => controller.abort();
+  }, [keyword]);
+
+  return (
+    <main style={{ fontFamily: 'system-ui, sans-serif', padding: 16 }}>
+      <h1>キャスト一覧</h1>
+      <input
+        placeholder="名前で検索"
+        value={keyword}
+        onChange={(e) => setKeyword(e.target.value)}
+        style={{ padding: 8, margin: '12px 0', width: 280 }}
+      />
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr>
+            <th align="left">名前</th>
+            <th align="left">ニックネーム</th>
+            <th align="right">時給</th>
+            <th align="right">評価</th>
+            <th align="left">タグ</th>
+            <th align="center">飲める</th>
+          </tr>
+        </thead>
+        <tbody>
+          {list.map((c) => (
+            <tr key={c.id}>
+              <td>{c.name}</td>
+              <td>{c.nickname ?? '-'}</td>
+              <td align="right">{c.wage ?? '-'}</td>
+              <td align="right">{c.rating ?? '-'}</td>
+              <td>{(c.genre ?? []).join(', ')}</td>
+              <td align="center">{c.drinkable ? '◯' : '−'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </main>
+  );
+}
+</file>
+
+<file path="styles/globals.css">
+body {
+    margin: 0;
+    padding: 0;
+    background: #f9fafb;
+    color: #111827;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  }
+  
+  h1 {
+    font-size: 1.8rem;
+    margin-bottom: 1rem;
+    color: #1e3a8a;
+  }
+  
+  h2 {
+    margin-top: 1.5rem;
+    color: #2563eb;
+  }
+  
+  a {
+    color: #2563eb;
+    text-decoration: none;
+  }
+  
+  a:hover {
+    text-decoration: underline;
+  }
+</file>
+
+<file path="supabase/.temp/cli-latest">
+v2.40.7
+</file>
+
+<file path="supabase/.temp/gotrue-version">
+v2.179.0
+</file>
+
+<file path="supabase/.temp/postgres-version">
+17.6.1.005
+</file>
+
+<file path="supabase/.temp/project-ref">
+kemrpytjgikyxpgtmkdm
+</file>
+
+<file path="supabase/.temp/rest-version">
+v13.0.5
+</file>
+
+<file path="supabase/.temp/storage-version">
+custom-metadata
+</file>
+
+<file path="supabase/migrations/0001_init.sql">
+-- supabase/migrations/0001_init.sql
+-- Tiara Portal / 勤怠基盤 初回マイグレーション
+-- 対象: stores / casts / shifts / audit_logs
+-- 既存: tasks, questionnaire_answers は変更しない
+
+-- ===== Extensions =====
+create extension if not exists "pgcrypto";     -- gen_random_uuid()
+create extension if not exists "uuid-ossp";    -- uuid_generate_v4()
+
+-- ===== Common: updated_at 自動更新トリガ =====
+create or replace function set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
+-- =========================================================
+-- stores（店舗）
+-- =========================================================
+create table if not exists public.stores (
+  id          uuid primary key default gen_random_uuid(),
+  name        text not null,
+  address     text,
+  phone       text,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+
+comment on table  public.stores is '出店（拠点）情報';
+comment on column public.stores.name    is '店舗名';
+comment on column public.stores.address is '住所';
+comment on column public.stores.phone   is '電話番号';
+
+create index if not exists idx_stores_name on public.stores using btree (name);
+
+drop trigger if exists trg_stores_updated_at on public.stores;
+create trigger trg_stores_updated_at
+before update on public.stores
+for each row execute function set_updated_at();
+
+-- =========================================================
+-- casts（キャスト）
+-- =========================================================
+create table if not exists public.casts (
+  id          uuid primary key default gen_random_uuid(),
+  store_id    uuid references public.stores(id) on delete set null,
+  name        text not null,
+  nickname    text,
+  rating      numeric(3,2) default 0 check (rating between 0 and 5),
+  wage        integer,                -- 時給(円)
+  genre       text[],                 -- タグ配列（例: {'レギュラー','新人'}）
+  drinkable   boolean default false,  -- 同伴/飲酒可否のビットとして流用可
+  owner       text,                   -- 所属/オーナー名等
+  active      boolean default true,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+
+comment on table  public.casts is 'キャストの基本情報';
+comment on column public.casts.rating is '0.00〜5.00';
+
+create index if not exists idx_casts_store   on public.casts using btree (store_id);
+create index if not exists idx_casts_active  on public.casts using btree (active);
+create index if not exists idx_casts_name    on public.casts using btree (name);
+
+drop trigger if exists trg_casts_updated_at on public.casts;
+create trigger trg_casts_updated_at
+before update on public.casts
+for each row execute function set_updated_at();
+
+-- =========================================================
+-- shifts（シフト）
+-- =========================================================
+create table if not exists public.shifts (
+  id          uuid primary key default gen_random_uuid(),
+  cast_id     uuid not null references public.casts(id) on delete cascade,
+  store_id    uuid references public.stores(id) on delete set null,
+  starts_at   timestamptz not null,
+  ends_at     timestamptz not null,
+  status      text not null default 'scheduled' check (status in ('scheduled','confirmed','absent')),
+  memo        text,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  constraint chk_time_window check (ends_at > starts_at)
+);
+
+comment on table  public.shifts is 'キャストの出勤予定/実績';
+comment on column public.shifts.status is 'scheduled/confirmed/absent';
+
+-- 検索用: キャスト×開始時刻、店舗×開始時刻
+create index if not exists idx_shifts_cast_time  on public.shifts using btree (cast_id, starts_at desc);
+create index if not exists idx_shifts_store_time on public.shifts using btree (store_id, starts_at desc);
+
+drop trigger if exists trg_shifts_updated_at on public.shifts;
+create trigger trg_shifts_updated_at
+before update on public.shifts
+for each row execute function set_updated_at();
+
+-- =========================================================
+-- audit_logs（監査ログ）
+-- =========================================================
+create table if not exists public.audit_logs (
+  id          uuid primary key default gen_random_uuid(),
+  actor       text not null,            -- user id / system
+  action      text not null,            -- created/updated/deleted/webhook_received など
+  entity      text not null,            -- casts/shifts/stores/... 自由記述
+  entity_id   uuid,
+  payload     jsonb,
+  created_at  timestamptz not null default now()
+);
+
+create index if not exists idx_audit_created on public.audit_logs using btree (created_at desc);
+create index if not exists idx_audit_entity  on public.audit_logs using btree (entity, created_at desc);
+
+-- =========================================================
+-- RLS / RBAC（最小セット）
+-- 役割: admin / cast / store_viewer
+-- 方針:
+--   ・stores, casts, shifts は 一旦 read を緩め（全件閲覧可）→ 後続PRで store_id / 所属 による絞り込み導入
+--   ・write は admin のみ（JWT クレーム: role=admin）
+--   ・audit_logs は admin のみ閲覧、insert は admin（※Service RoleはRLSをバイパス）
+-- =========================================================
+
+alter table public.stores     enable row level security;
+alter table public.casts      enable row level security;
+alter table public.shifts     enable row level security;
+alter table public.audit_logs enable row level security;
+
+-- ===== SELECT: 暫定で全公開（後で tighten する）=====
+drop policy if exists "public read stores" on public.stores;
+create policy "public read stores"
+  on public.stores for select
+  using (true);
+
+drop policy if exists "public read casts" on public.casts;
+create policy "public read casts"
+  on public.casts for select
+  using (true);
+
+drop policy if exists "public read shifts" on public.shifts;
+create policy "public read shifts"
+  on public.shifts for select
+  using (true);
+
+-- ===== WRITE: admin のみ =====
+-- stores
+drop policy if exists "admin write stores" on public.stores;
+create policy "admin write stores"
+  on public.stores for all
+  using (coalesce(auth.jwt() ->> 'role','') = 'admin')
+  with check (coalesce(auth.jwt() ->> 'role','') = 'admin');
+
+-- casts
+drop policy if exists "admin write casts" on public.casts;
+create policy "admin write casts"
+  on public.casts for all
+  using (coalesce(auth.jwt() ->> 'role','') = 'admin')
+  with check (coalesce(auth.jwt() ->> 'role','') = 'admin');
+
+-- shifts
+drop policy if exists "admin write shifts" on public.shifts;
+create policy "admin write shifts"
+  on public.shifts for all
+  using (coalesce(auth.jwt() ->> 'role','') = 'admin')
+  with check (coalesce(auth.jwt() ->> 'role','') = 'admin');
+
+-- ===== audit_logs: admin 閲覧 + admin 追記のみ =====
+drop policy if exists "admin read audit"  on public.audit_logs;
+create policy "admin read audit"
+  on public.audit_logs for select
+  using (coalesce(auth.jwt() ->> 'role','') = 'admin');
+
+drop policy if exists "admin insert audit" on public.audit_logs;
+create policy "admin insert audit"
+  on public.audit_logs for insert
+  with check (coalesce(auth.jwt() ->> 'role','') = 'admin');
+
+-- 参考: Service Role は RLS をバイパスするため、サーバ側からの監査書き込みはこのままで可
+</file>
+
+<file path="supabase/migrations/0002_unique_cast_name.sql">
+-- 目的: casts の (store_id, name) を一意にして、同一店舗での重複登録を防ぐ
+-- 注意: 既存重複があると一意インデックスの作成に失敗します。
+--       事前に重複チェック＆解消してから適用してください（下に参考SQLあり）。
+
+-- ========= 参考: 重複確認 (手動実行用) =========
+-- select store_id, name, count(*) as cnt
+-- from public.casts
+-- group by store_id, name
+-- having count(*) > 1
+-- order by cnt desc;
+
+-- ========= ユニーク制約の追加手順 =========
+-- 1) まず一意インデックスを作成（存在すればスキップ）
+create unique index if not exists uq_casts_store_name_idx
+  on public.casts (store_id, name);
+
+-- 2) そのインデックスを流用して「表レベルの制約」を付与（重複名での再実行を避けるためガード）
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'uq_casts_store_name'
+      and conrelid = 'public.casts'::regclass
+  ) then
+    alter table public.casts
+      add constraint uq_casts_store_name
+      unique using index uq_casts_store_name_idx;
+  end if;
+end$$;
+
+-- ========= 補足 =========
+-- ・store_id が NULL の行はユニーク判定の対象外（NULL≠NULL）です。
+--   NULLも含めて厳密に一意にしたい場合は、store_id を NOT NULL にする運用に揃えてください。
+-- ・大文字小文字/表記ゆれを吸収したい場合は、保存前に lower(name) で正規化する等のアプリ側統一を推奨します。
+</file>
+
+<file path="supabase/migrations/0003_mvp_plus_columns.sql">
+-- ============================================
+-- 0003: MVP+ columns (stores / casts / shifts)
+-- ============================================
+
+-- stores -------------------------------------------------
+alter table public.stores
+  add column if not exists code text,                                   -- 内部用コード（店舗コード）
+  add column if not exists active boolean not null default true,        -- 稼働フラグ
+  add column if not exists notes text;                                   -- 備考
+
+-- コードや名前での検索用
+create index if not exists idx_stores_code on public.stores (code);
+create index if not exists idx_stores_lower_name on public.stores (lower(name));
+
+-- 任意：店舗コードを一意にしたい場合（null重複は許容）
+create unique index if not exists uq_stores_code on public.stores (code);
+
+-- casts --------------------------------------------------
+alter table public.casts
+  add column if not exists code text,                                   -- 社内管理コード
+  add column if not exists phone text,
+  add column if not exists email text,
+  add column if not exists status text not null default 'active'        -- 'active' | 'inactive' | 'retired' 想定
+    check (status in ('active','inactive','retired')),
+  add column if not exists deleted_at timestamptz,                      -- ソフト削除
+  add column if not exists profile_note text,                           -- 紹介文/メモ
+  add column if not exists tags text[] default '{}'::text[];            -- 任意タグ
+
+-- よく使う検索のためのインデックス
+create index if not exists idx_casts_store on public.casts (store_id);
+create index if not exists idx_casts_status on public.casts (status);
+create index if not exists idx_casts_lower_name on public.casts (lower(name));
+
+-- shifts -------------------------------------------------
+alter table public.shifts
+  add column if not exists role text not null default 'cast'            -- 'cast' | 'staff' 等
+    check (role in ('cast','staff')),
+  add column if not exists pay_rate int,                                -- 当時点の時給スナップショット
+  add column if not exists memo text,
+  add column if not exists canceled_at timestamptz;
+
+-- 既存: uq_shifts_cast_start (cast_id, starts_at) は 0002c で作成済み想定
+create index if not exists idx_shifts_store_start on public.shifts (store_id, starts_at);
+</file>
+
+<file path="supabase/migrations/0004_rls_minimal.sql">
+-- ==================================================
+-- 0004: RLS/RBAC minimum
+-- - app_users にユーザーとロールを保持
+-- - 認証済みは読み取り可、書き込みは admin のみ
+-- ==================================================
+
+-- ロール管理テーブル（auth.users と紐付け）
+create table if not exists public.app_users (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  role text not null check (role in ('admin','cast','store_viewer')),
+  cast_id uuid references public.casts(id),    -- 将来: cast ログイン時の本人紐付けに利用
+  store_id uuid references public.stores(id),  -- 将来: 店舗ビューアの範囲制限に利用
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_app_users_role on public.app_users(role);
+
+-- RLS を有効化
+alter table public.stores enable row level security;
+alter table public.casts  enable row level security;
+alter table public.shifts enable row level security;
+-- （監査ログがあれば）alter table public.audit_logs enable row level security;
+
+-- 便利: admin 判定（将来ポリシーで使い回し）
+create or replace function public.is_admin()
+returns boolean language sql stable as $$
+  select exists (
+    select 1 from public.app_users au
+    where au.user_id = auth.uid() and au.role = 'admin'
+  );
+$$;
+
+-- ========== SELECT（閲覧） ==========
+-- 認証済みなら閲覧可（必要に応じて cast/store_viewer のみに絞ってもOK）
+drop policy if exists sel_stores_all on public.stores;
+create policy sel_stores_all on public.stores
+  for select using (auth.uid() is not null);
+
+drop policy if exists sel_casts_all on public.casts;
+create policy sel_casts_all on public.casts
+  for select using (auth.uid() is not null);
+
+drop policy if exists sel_shifts_all on public.shifts;
+create policy sel_shifts_all on public.shifts
+  for select using (auth.uid() is not null);
+
+-- ========== INSERT/UPDATE/DELETE（管理者のみ） ==========
+drop policy if exists mut_stores_admin on public.stores;
+create policy mut_stores_admin on public.stores
+  for all
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+drop policy if exists mut_casts_admin on public.casts;
+create policy mut_casts_admin on public.casts
+  for all
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+drop policy if exists mut_shifts_admin on public.shifts;
+create policy mut_shifts_admin on public.shifts
+  for all
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+-- 参考: 監査ログは admin のみ閲覧・書込
+-- drop policy if exists sel_audit_admin on public.audit_logs;
+-- create policy sel_audit_admin on public.audit_logs
+--   for select using (public.is_admin());
+-- drop policy if exists ins_audit_admin on public.audit_logs;
+-- create policy ins_audit_admin on public.audit_logs
+--   for insert with check (public.is_admin());
+</file>
+
+<file path="supabase/migrations/0005_shift_search_indexes.sql">
+-- cast別の期間絞り込み
+create index if not exists idx_shifts_cast_starts
+  on public.shifts (cast_id, starts_at);
+
+-- store別の期間絞り込み
+create index if not exists idx_shifts_store_starts
+  on public.shifts (store_id, starts_at);
+
+-- starts_at 単体のソート最適化
+create index if not exists idx_shifts_starts_at
+  on public.shifts (starts_at);
+</file>
+
+<file path="supabase/migrations/0006_shifts_status_check_add_canceled.sql">
+-- allow 'canceled' in shifts.status
+ALTER TABLE public.shifts
+  DROP CONSTRAINT IF EXISTS shifts_status_check;
+
+ALTER TABLE public.shifts
+  ADD CONSTRAINT shifts_status_check
+  CHECK (status IN ('scheduled','confirmed','finished','canceled'));
+
+-- 既定値も念のため明示
+ALTER TABLE public.shifts
+  ALTER COLUMN status SET DEFAULT 'scheduled';
+</file>
+
+<file path="supabase/migrations/20250921051301_unique_shift_cast_start.sql">
+create unique index if not exists uq_shifts_cast_start
+  on public.shifts (cast_id, starts_at);
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'uq_shifts_cast_start'
+      and conrelid = 'public.shifts'::regclass
+  ) then
+    alter table public.shifts
+      add constraint uq_shifts_cast_start
+      unique using index uq_shifts_cast_start;
+  end if;
+end$$;
+</file>
+
+<file path="supabase/migrations/20250921051302_unique_store_name.sql">
+create unique index if not exists uq_stores_name_idx on public.stores (name);
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'uq_stores_name'
+      and conrelid = 'public.stores'::regclass
+  ) then
+    alter table public.stores
+      add constraint uq_stores_name
+      unique using index uq_stores_name_idx;
+  end if;
+end$$;
+</file>
+
+<file path="supabase/migrations/20250921055945_audit_logs.sql">
+-- 0005: audit_logs
+create extension if not exists pgcrypto;
+
+create table if not exists public.audit_logs (
+  id          uuid primary key default gen_random_uuid(),
+  created_at  timestamptz not null default now(),
+  actor       text not null,                            -- 'system/line' など
+  action      text not null check (
+                action in ('created','updated','deleted','webhook_received','login','other')
+              ),
+  entity      text not null,                            -- 'casts' / 'stores' / 'line' など
+  entity_id   text,
+  payload     jsonb,
+  ip          text,
+  user_agent  text
+);
+
+create index if not exists idx_audit_created_at on public.audit_logs (created_at desc);
+create index if not exists idx_audit_entity on public.audit_logs (entity, entity_id);
+create index if not exists idx_audit_action on public.audit_logs (action);
+
+-- RLS: admin のみ閲覧/書込（Service Role は常にバイパス）
+alter table public.audit_logs enable row level security;
+
+drop policy if exists sel_audit_admin on public.audit_logs;
+create policy sel_audit_admin
+  on public.audit_logs for select
+  to authenticated using (public.is_admin());
+
+drop policy if exists mut_audit_admin on public.audit_logs;
+create policy mut_audit_admin
+  on public.audit_logs for all
+  to authenticated using (public.is_admin())
+  with check (public.is_admin());
+</file>
+
+<file path="supabase/migrations/20250921090304_rls_strict_all_deny.sql">
+-- RLS 全有効化 + 既存ポリシー撤去（Service Role でのみ操作する運用）
+-- 何度流しても安全なように IF EXISTS / IF NOT EXISTS を多用
+
+-- 1) 既存ポリシー削除（存在すれば）
+drop policy if exists sel_stores_all  on public.stores;
+drop policy if exists sel_casts_all   on public.casts;
+drop policy if exists sel_shifts_all  on public.shifts;
+drop policy if exists mut_stores_admin on public.stores;
+drop policy if exists mut_casts_admin  on public.casts;
+drop policy if exists mut_shifts_admin on public.shifts;
+
+-- 2) RLS有効化（すでにONなら何もしない）
+alter table public.stores enable row level security;
+alter table public.casts  enable row level security;
+alter table public.shifts enable row level security;
+
+-- 3) “明示ポリシーなし” = 全Deny
+-- （Service Role は RLS をバイパスするため API は動作します）
+
+-- 4) 参考：将来の店舗スコープ閲覧ポリシー雛形（コメントアウトのままコミット）
+-- create policy sel_stores_by_owner on public.stores
+--   for select to authenticated
+--   using (owner = auth.uid()::text);
+</file>
+
+<file path="supabase/migrations/20250921091553_rls_strict_all_deny.sql">
+-- 既存ポリシー撤去
+drop policy if exists sel_stores_all  on public.stores;
+drop policy if exists sel_casts_all   on public.casts;
+drop policy if exists sel_shifts_all  on public.shifts;
+drop policy if exists mut_stores_admin on public.stores;
+drop policy if exists mut_casts_admin  on public.casts;
+drop policy if exists mut_shifts_admin on public.shifts;
+
+-- RLS有効化（=明示ポリシーなし→全Deny。Service Roleのみ可）
+alter table public.stores enable row level security;
+alter table public.casts  enable row level security;
+alter table public.shifts enable row level security;
+</file>
+
+<file path="next-env.d.ts">
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+/// <reference path="./.next/types/routes.d.ts" />
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/pages/api-reference/config/typescript for more information.
+</file>
+
+<file path="README.md">
+# Tiara System Portal (勤怠管理システム)
+
+中洲人材派遣「ティアラネット」向けの勤怠・配車・連絡基盤。  
+PWA（モバイル）＋ Web 管理を想定。**Backend MVP（安全・再現・ドキュメント）**まで整備済み。
+
+---
+
+## 📦 技術スタック
+
+- **Next.js** (API Routes)
+- **Supabase (Postgres)**：RLS / Migration / Studio
+- **TypeScript**
+- **ts-node**（seed）
+- **zod**（APIバリデーション）
+
+---
+
+## 🔐 環境変数
+
+`.env.local`（**コミットしない**）に以下を設定：
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=...           # Supabase プロジェクトURL
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...      # anon キー（フロント用）
+SUPABASE_SERVICE_ROLE_KEY=...          # Service Role キー（API/seed 用・厳重管理）
+</file>
+
+<file path="docs/openapi.yaml">
+openapi: 3.0.3
+info:
+  title: Tiara System Portal API
+  version: 0.1.0
+  description: |
+    勤怠管理MVP向けの社内API定義。
+    - RLSはDB側で **全Deny**、本APIは Service Role 経由のみ想定（外部公開なし）。
+    - すべての成功レスポンスは `{ ok:true, ... }`、エラーは `{ ok:false, code, message }`。
+
+servers:
+  - url: http://localhost:3000
+    description: Local Dev
+  - url: https://{vercel_project}.vercel.app
+    description: Vercel Preview/Prod
+    variables:
+      vercel_project:
+        default: tiara-portal
+
+tags:
+  - name: Casts
+  - name: Stores
+  - name: Shifts
+  - name: Webhooks
+
+paths:
+  /api/casts:
+    get:
+      tags: [Casts]
+      summary: List casts
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Sort'
+        - in: query
+          name: keyword
+          schema: { type: string }
+          description: 部分一致（name）
+        - in: query
+          name: owner
+          schema: { type: string }
+        - in: query
+          name: genre
+          schema: { type: string }
+          description: ジャンル（単一値）。複数は将来拡張。
+        - in: query
+          name: drinkable
+          schema: { type: boolean }
+        - in: query
+          name: wage_min
+          schema: { type: number }
+        - in: query
+          name: active
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaginatedCasts' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '500': { $ref: '#/components/responses/DbError' }
+    post:
+      tags: [Casts]
+      summary: Create cast
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CastCreate' }
+      responses:
+        '200':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  item: { $ref: '#/components/schemas/Cast' }
+                required: [ok, item]
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }   # store_id 不正
+        '409': { $ref: '#/components/responses/Conflict' }   # (store_id,name) 一意違反
+        '500': { $ref: '#/components/responses/DbError' }
+
+  /api/casts/{id}:
+    patch:
+      tags: [Casts]
+      summary: Update cast (partial)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CastUpdate' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  item: { $ref: '#/components/schemas/Cast' }
+                required: [ok, item]
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/DbError' }
+
+  /api/stores:
+    get:
+      tags: [Stores]
+      summary: List stores
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Sort'
+        - in: query
+          name: keyword
+          schema: { type: string }
+          description: 部分一致（name）
+        - in: query
+          name: active
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaginatedStores' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '500': { $ref: '#/components/responses/DbError' }
+
+  /api/shifts:
+    get:
+      tags: [Shifts]
+      summary: List shifts
+      description: |
+        `expand=names` を付けると `cast_name` / `store_name` を同梱したフラット構造で返却します。
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Sort'
+        - in: query
+          name: store_id
+          schema: { type: string, format: uuid }
+        - in: query
+          name: cast_id
+          schema: { type: string, format: uuid }
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [scheduled, confirmed, canceled, finished]
+        - in: query
+          name: role
+          schema:
+            type: string
+            enum: [cast]
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - in: query
+          name: expand
+          schema:
+            type: string
+            enum: [names]
+          description: 名前を同梱（`names`）
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PaginatedShifts'
+                  - $ref: '#/components/schemas/PaginatedShiftsExpanded'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '500': { $ref: '#/components/responses/DbError' }
+    post:
+      tags: [Shifts]
+      summary: Create shift
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ShiftCreate' }
+      responses:
+        '200':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  item: { $ref: '#/components/schemas/Shift' }
+                required: [ok, item]
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' } # FK不整合など
+        '500': { $ref: '#/components/responses/DbError' }
+
+  /api/shifts/{id}:
+    patch:
+      tags: [Shifts]
+      summary: Update shift (partial)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ShiftUpdate' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  item: { $ref: '#/components/schemas/Shift' }
+                required: [ok, item]
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/DbError' }
+
+  /api/webhooks/line:
+    post:
+      tags: [Webhooks]
+      summary: LINE Webhook stub (audit only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: OK (監査ログに保存)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  audit_id: { type: string, format: uuid }
+                required: [ok]
+        '500': { $ref: '#/components/responses/DbError' }
+
+  /api/webhooks/chatwoot:
+    post:
+      tags: [Webhooks]
+      summary: Chatwoot Webhook stub (audit only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: OK (監査ログに保存)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  audit_id: { type: string, format: uuid }
+                required: [ok]
+        '500': { $ref: '#/components/responses/DbError' }
+
+components:
+  parameters:
+    Page:
+      in: query
+      name: page
+      schema: { type: integer, minimum: 1, default: 1 }
+    Limit:
+      in: query
+      name: limit
+      schema: { type: integer, minimum: 1, maximum: 100, default: 30 }
+    Sort:
+      in: query
+      name: sort
+      schema: { type: string }
+      description: カンマ区切り。`-` で降順（例：`rating,-wage,name`）
+    From:
+      in: query
+      name: from
+      schema: { type: string, format: date-time }
+      description: starts_at の下限（含む）
+    To:
+      in: query
+      name: to
+      schema: { type: string, format: date-time }
+      description: starts_at の上限（未満）
+
+  responses:
+    ValidationError:
+      description: 入力バリデーションエラー（zod）
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+          examples:
+            example:
+              value: { ok: false, code: VALIDATION_ERROR, message: "limit must be <= 100" }
+    DbError:
+      description: データベースエラー
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    NotFound:
+      description: リソースが存在しない
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+          examples:
+            example:
+              value: { ok: false, code: DB_ERROR, message: "not found" }
+    Conflict:
+      description: 一意制約違反など競合
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+          examples:
+            example:
+              value: { ok: false, code: DB_ERROR, message: "duplicate key value violates unique constraint" }
+
+  schemas:
+    ApiError:
+      type: object
+      properties:
+        ok: { type: boolean, example: false }
+        code:
+          type: string
+          enum: [VALIDATION_ERROR, DB_ERROR, INTERNAL_ERROR]
+        message: { type: string }
+      required: [ok, code, message]
+
+    PaginationMeta:
+      type: object
+      properties:
+        ok: { type: boolean, example: true }
+        page: { type: integer, minimum: 1 }
+        limit: { type: integer, minimum: 1, maximum: 100 }
+        total: { type: integer, minimum: 0 }
+        hasNext: { type: boolean }
+      required: [ok, page, limit, total, hasNext]
+
+    Store:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        address: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        code: { type: string, nullable: true }
+        active: { type: boolean }
+        notes: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+      required: [id, name, active, created_at, updated_at]
+
+    Cast:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        store_id: { type: string, format: uuid }
+        name: { type: string }
+        nickname: { type: string, nullable: true }
+        rating: { type: number, nullable: true }
+        wage: { type: number, nullable: true }
+        genre:
+          type: array
+          items: { type: string }
+          nullable: true
+        drinkable: { type: boolean, nullable: true }
+        owner: { type: string, nullable: true }
+        active: { type: boolean }
+        code: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        email: { type: string, nullable: true }
+        status: { type: string, nullable: true }
+        profile_note: { type: string, nullable: true }
+        tags:
+          type: array
+          items: { type: string }
+          nullable: true
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deleted_at: { type: string, format: date-time, nullable: true }
+      required: [id, store_id, name, active, created_at, updated_at]
+
+    # --- Casts requests ---
+    CastCreate:
+      type: object
+      properties:
+        store_id: { type: string, format: uuid }
+        name: { type: string }
+        nickname: { type: string }
+        wage: { type: number }
+        rating: { type: number }
+        genre:
+          type: array
+          items: { type: string }
+        drinkable: { type: boolean }
+        owner: { type: string }
+      required: [store_id, name]
+
+    CastUpdate:
+      type: object
+      description: いずれのフィールドも任意（部分更新）
+      properties:
+        store_id: { type: string, format: uuid }
+        name: { type: string }
+        nickname: { type: string, nullable: true }
+        wage: { type: number, nullable: true }
+        rating: { type: number, nullable: true }
+        genre:
+          type: array
+          items: { type: string }
+          nullable: true
+        drinkable: { type: boolean, nullable: true }
+        owner: { type: string, nullable: true }
+        active: { type: boolean, nullable: true }
+        code: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        email: { type: string, nullable: true }
+        status: { type: string, nullable: true }
+        profile_note: { type: string, nullable: true }
+        tags:
+          type: array
+          items: { type: string }
+          nullable: true
+
+    Shift:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        cast_id: { type: string, format: uuid }
+        store_id: { type: string, format: uuid, nullable: true }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        status:
+          type: string
+          enum: [scheduled, confirmed, canceled, finished]
+        memo: { type: string, nullable: true }
+        role:
+          type: string
+          enum: [cast]
+        pay_rate: { type: number, nullable: true }
+        canceled_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+      required:
+        [id, cast_id, starts_at, ends_at, status, role, created_at, updated_at]
+
+    # --- Shifts requests ---
+    ShiftCreate:
+      type: object
+      properties:
+        cast_id: { type: string, format: uuid }
+        store_id: { type: string, format: uuid, nullable: true }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        status:
+          type: string
+          enum: [scheduled, confirmed, canceled, finished]
+        role:
+          type: string
+          enum: [cast]
+        pay_rate: { type: number }
+        memo: { type: string }
+      required: [cast_id, starts_at, ends_at, status, role]
+
+    ShiftUpdate:
+      type: object
+      description: いずれのフィールドも任意（部分更新）
+      properties:
+        cast_id: { type: string, format: uuid }
+        store_id: { type: string, format: uuid, nullable: true }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        status:
+          type: string
+          enum: [scheduled, confirmed, canceled, finished]
+        role:
+          type: string
+          enum: [cast]
+        pay_rate: { type: number, nullable: true }
+        memo: { type: string, nullable: true }
+
+    ShiftExpanded:
+      allOf:
+        - $ref: '#/components/schemas/Shift'
+        - type: object
+          properties:
+            cast_name: { type: string, nullable: true }
+            store_name: { type: string, nullable: true }
+
+    PaginatedCasts:
+      allOf:
+        - $ref: '#/components/schemas/PaginationMeta'
+        - type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/Cast' }
+
+    PaginatedStores:
+      allOf:
+        - $ref: '#/components/schemas/PaginationMeta'
+        - type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/Store' }
+
+    PaginatedShifts:
+      allOf:
+        - $ref: '#/components/schemas/PaginationMeta'
+        - type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/Shift' }
+
+    PaginatedShiftsExpanded:
+      allOf:
+        - $ref: '#/components/schemas/PaginationMeta'
+        - type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/ShiftExpanded' }
+</file>
+
+<file path="lib/audit.ts">
+// lib/audit.ts
+import { supabaseAdmin } from '@/lib/db';
+
+export type AuditInput = {
+  actor: string;
+  action: 'created'|'updated'|'deleted'|'webhook_received'|'login'|'other';
+  entity: string;
+  entityId?: string;
+  payload?: any;
+  ip?: string | null;
+  userAgent?: string | null;
+};
+
+export async function writeAudit(input: AuditInput) {
+  if (!supabaseAdmin) {
+    const err = new Error('[audit] supabaseAdmin is undefined (no service role?)');
+    console.error(err.message);
+    throw err;
+  }
+  const { data, error } = await supabaseAdmin
+    .from('audit_logs')
+    .insert({
+      actor: input.actor,
+      action: input.action,
+      entity: input.entity,
+      entity_id: input.entityId ?? null,
+      payload: input.payload ?? null,
+      ip: input.ip ?? null,
+      user_agent: input.userAgent ?? null,
+    })
+    .select('id')
+    .single();
+
+  if (error) throw error;
+  return data?.id ?? null;
+}
+</file>
+
+<file path="pages/api/stores/index.ts">
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { supabaseAdmin as supabase } from '@/lib/db';
+import { z } from 'zod';
+
+type ApiError = { ok: false; code: 'VALIDATION_ERROR' | 'DB_ERROR' | 'INTERNAL_ERROR'; message: string };
+const bad = (code: ApiError['code'], message: string, status = 400) =>
+  ({ status, body: { ok: false, code, message } as ApiError });
+
+const SORTS = new Set(['name','created_at','updated_at','code']);
+
+const querySchema = z.object({
+  keyword: z.string().optional(),
+  active:  z.coerce.boolean().optional(),
+  page:  z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(30),
+  sort:  z.string().optional(),    // 例: "name,-updated_at"
+});
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== 'GET') {
+    const e = bad('VALIDATION_ERROR', 'Method Not Allowed', 405);
+    return res.status(e.status).json(e.body);
+  }
+  if (!supabase) {
+    const e = bad('INTERNAL_ERROR', 'Service role is not configured', 500);
+    return res.status(e.status).json(e.body);
+  }
+
+  const parsed = querySchema.safeParse(req.query);
+  if (!parsed.success) {
+    const e = bad('VALIDATION_ERROR', parsed.error.message, 400);
+    return res.status(e.status).json(e.body);
+  }
+  const { keyword, active, page, limit, sort } = parsed.data;
+
+  const rFrom = (page - 1) * limit;
+  const rTo   = rFrom + limit - 1;
+
+  // COUNT
+  let cq = supabase.from('stores').select('*', { count: 'exact', head: true });
+  if (keyword) cq = cq.ilike('name', `%${keyword}%`);
+  if (active !== undefined) cq = cq.eq('active', active);
+
+  const { count: total, error: cntErr } = await cq;
+  if (cntErr) {
+    const e = bad('DB_ERROR', cntErr.message, 500);
+    return res.status(e.status).json(e.body);
+  }
+  if ((total ?? 0) === 0 || rFrom >= (total ?? 0)) {
+    return res.status(200).json({ ok: true, items: [], page, limit, total: total ?? 0, hasNext: false });
+  }
+
+  // DATA
+  let q = supabase.from('stores').select('*');
+  if (keyword) q = q.ilike('name', `%${keyword}%`);
+  if (active !== undefined) q = q.eq('active', active);
+
+  if (sort) {
+    const parts = sort.split(',').map(s => s.trim()).filter(Boolean);
+    for (const p of parts) {
+      const asc = !p.startsWith('-');
+      const key = p.replace(/^[+-]/,'');
+      if (SORTS.has(key)) q = q.order(key as any, { ascending: asc, nullsFirst: !asc });
+    }
+  } else {
+    q = q.order('updated_at', { ascending: false }).order('name', { ascending: true });
+  }
+
+  q = q.range(rFrom, rTo);
+
+  const { data, error } = await q;
+  if (error) {
+    const e = bad('DB_ERROR', error.message, 500);
+    return res.status(e.status).json(e.body);
+  }
+
+  res.status(200).json({
+    ok: true,
+    items: data ?? [],
+    page, limit,
+    total: total ?? 0,
+    hasNext: rTo + 1 < (total ?? 0),
+  });
+}
+</file>
+
+<file path="pages/api/webhooks/chatwoot.ts">
+// pages/api/webhooks/chatwoot.ts
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { writeAudit } from '@/lib/audit';
+
+export const config = {
+  api: { bodyParser: { sizeLimit: '1mb' } }, // 必要なら調整
+};
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  try {
+    const id = await writeAudit({
+      actor: 'system/chatwoot',
+      action: 'webhook_received',
+      entity: 'chatwoot',
+      payload: { headers: req.headers, body: req.body },
+      ip: (req.headers['x-forwarded-for'] as string) ?? req.socket.remoteAddress ?? null,
+      userAgent: req.headers['user-agent'] ?? null,
+    });
+
+    // デバッグしやすいよう audit_id を返す（運用で不要なら削除OK）
+    res.status(200).json({ ok: true, audit_id: id });
+  } catch (e: any) {
+    console.error('[webhooks/chatwoot] audit error:', e);
+    res.status(500).json({ ok: false, error: String(e?.message ?? e) });
+  }
+}
+</file>
+
+<file path="pages/api/webhooks/line.ts">
+// pages/api/webhooks/line.ts
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { writeAudit } from '@/lib/audit';
+
+export const config = { api: { bodyParser: { sizeLimit: '1mb' } } };
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  try {
+    const id = await writeAudit({
+      actor: 'system/line',
+      action: 'webhook_received',
+      entity: 'line',
+      payload: { headers: req.headers, body: req.body },
+      ip: (req.headers['x-forwarded-for'] as string) ?? req.socket.remoteAddress ?? null,
+      userAgent: req.headers['user-agent'] ?? null,
+    });
+    res.status(200).json({ ok: true, audit_id: id });
+  } catch (e: any) {
+    console.error('[webhook/line] audit error:', e);
+    res.status(500).json({ ok: false, error: String(e?.message ?? e) });
+  }
+}
+</file>
+
+<file path="pages/docs/coding-rules.tsx">
+// pages/docs/coding-rules.tsx
+// Next.js (Pages Router) — Coding Rules page for Tiara Portal
+// Place at: pages/docs/coding-rules.tsx
+
+import React from 'react';
+
+const Page: React.FC = () => {
+  return (
+    <main className="min-h-screen bg-[#0b1020] text-[#e6e8ef]">
+      <header className="max-w-4xl mx-auto px-4 py-10">
+        <h1 className="text-3xl font-bold tracking-tight">Tiara Portal — Coding Rules</h1>
+        <p className="mt-2 text-sm text-[#9aa3b2]">
+          最終更新：2025-09-22（v1.0） / Next.js + TypeScript + NestJS + Prisma + PostgreSQL
+        </p>
+      </header>
+
+      <div className="max-w-4xl mx-auto px-4 pb-24 space-y-8">
+        <Nav />
+
+        <Section id="intro" title="0. 前提">
+          <ul className="list-disc pl-6 space-y-2">
+            <li>言語：<b>TypeScript 5+</b>（<code>strict</code>、<code>noImplicitAny</code> 有効）</li>
+            <li>API：<b>NestJS</b>、ORM：<b>Prisma</b>、DB：<b>PostgreSQL 16</b></li>
+            <li>フロント：<b>Next.js</b>（Cast PWA / Admin）</li>
+            <li>ストレージ：<b>Amazon S3</b>（private、SSE、有効期限付き署名URL）</li>
+            <li>ページング：<b>30件固定</b>（API/フロント統一）</li>
+            <li>時刻：DBは<b>UTC</b>、表示は <b>Asia/Tokyo</b></li>
+          </ul>
+        </Section>
+
+        <Section id="naming" title="1. 命名規則 / ファイル構成">
+          <ul className="list-disc pl-6 space-y-2">
+            <li>変数/関数：<b>camelCase</b>、クラス/型/Enum：<b>PascalCase</b>、定数：<b>UPPER_SNAKE_CASE</b></li>
+            <li>API ルート：<b>kebab-case</b>（例：<code>/api/v1/cast-profiles</code>）</li>
+            <li>DB：テーブル/カラムは <b>snake_case</b>（Prisma の <code>@@map</code>/<code>@map</code> を利用）</li>
+          </ul>
+
+          <h4 className="mt-4 font-semibold">NestJS ディレクトリ（例）</h4>
+          <Code
+            lang="txt"
+            code={`/api
+  src/
+    modules/
+      auth/
+        auth.controller.ts
+        auth.service.ts
+        auth.module.ts
+        dto/
+      casts/
+      shops/
+    common/
+      guards/
+      interceptors/
+      filters/
+      pipes/
+      utils/
+    prisma/
+      prisma.module.ts
+      prisma.service.ts
+    main.ts`}
+          />
+
+          <h4 className="mt-4 font-semibold">Next.js ディレクトリ（例）</h4>
+          <Code
+            lang="txt"
+            code={`/web-admin
+  app/
+    (routes)/
+    components/
+    features/
+    hooks/
+    lib/
+    styles/`}
+          />
+        </Section>
+
+        <Section id="ts" title="2. TypeScript の書き方">
+          <ul className="list-disc pl-6 space-y-2">
+            <li><code>// @ts-ignore</code> は原則禁止（やむを得ない場合は理由コメントを必須）</li>
+            <li>外部公開 DTO と内部 Entity/Model は分離（<b>最小公開</b>の原則）</li>
+            <li>API では日時は <b>ISO8601文字列</b> でやり取り</li>
+            <li>ユニオン/Enumは<b>文字列リテラル型</b>を優先（例：<code>'pending' | 'approved' | 'rejected'</code>）</li>
+          </ul>
+        </Section>
+
+        <Section id="nest" title="3. NestJS（API）">
+          <h4 className="font-semibold mb-2">Controller / Service</h4>
+          <ul className="list-disc pl-6 space-y-2">
+            <li>Controller は薄く（検証・入出力整形）、Service にドメインロジック集約</li>
+            <li>Repository（Prisma）はさらに薄く、データ取得責務に限定</li>
+          </ul>
+          <Code
+            lang="ts"
+            code={`// casts.controller.ts
+@Post(':id/store-flags')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('STAFF','ADMIN')
+async upsertFlags(
+  @Param('id', ParseUUIDPipe) id: string,
+  @Body() dto: UpsertFlagsDto,
+) {
+  return this.castsService.upsertFlags(id, dto);
+}`}
+          />
+
+          <h4 className="font-semibold mb-2 mt-6">DTO / Validation</h4>
+          <ul className="list-disc pl-6 space-y-2">
+            <li><b>class-validator</b> 必須。<code>transform: true</code>、<code>whitelist: true</code></li>
+          </ul>
+          <Code
+            lang="ts"
+            code={`export class SearchCastsDto {
+  @IsOptional() @IsUUID() handlerId?: string;
+  @IsOptional() @IsInt() @Min(0) hourlyMin?: number;
+  @IsOptional() @IsInt() @Min(0) hourlyMax?: number;
+  @IsOptional() @IsIn(['and','or']) logic: 'and' | 'or' = 'and';
+  @IsOptional() @IsUUID() excludeNgForShopId?: string;
+  @IsOptional() @IsInt() @Min(1) page: number = 1; // 30件固定
+}`}
+          />
+
+          <h4 className="font-semibold mb-2 mt-6">認証・認可・APIポリシー</h4>
+          <ul className="list-disc pl-6 space-y-2">
+            <li>API バージョン：<b>/api/v1</b></li>
+            <li>認証：<b>JWT</b>、認可：<b>Guard + RBAC</b>（<code>@Roles()</code>）</li>
+            <li>ページング：<b>30件固定</b>、<code>?page=1</code> から開始</li>
+            <li>エラー形式：<code>{`{ error_code, message, details? }`}</code></li>
+          </ul>
+
+          <h4 className="font-semibold mb-2 mt-6">ロギング / 監査 / パフォーマンス</h4>
+          <ul className="list-disc pl-6 space-y-2">
+            <li>全リクエストに <b>request_id</b> 付与、JSON ログ</li>
+            <li>重要操作（NG登録、シフト確定、応募承認）は <b>audit_logs</b> に JSON diff 保存</li>
+            <li>N+1回避。必要な <code>include/select</code> のみ使用</li>
+          </ul>
+        </Section>
+
+        <Section id="prisma" title="4. Prisma / DB">
+          <ul className="list-disc pl-6 space-y-2">
+            <li>テーブル/カラムは <b>snake_case</b>（<code>@@map</code>/<code>@map</code>）</li>
+            <li>主キーは <b>UUID v4</b>（<code>default(uuid())</code>）</li>
+            <li><code>created_at</code>/<code>updated_at</code> はアプリ層で管理</li>
+            <li>外部ID（例：LINE <code>sub</code>）はユニーク制約</li>
+            <li>参照整合：FK による。履歴は監査ログで追跡</li>
+          </ul>
+          <h4 className="font-semibold mb-2 mt-4">マイグレーション</h4>
+          <ul className="list-disc pl-6 space-y-2">
+            <li>PR毎に <code>prisma migrate dev --create-only</code> を発行し差分レビュー</li>
+            <li>破壊的変更は段階導入（追加→両対応→削除）</li>
+          </ul>
+        </Section>
+
+        <Section id="frontend" title="5. フロントエンド（Next.js / React）">
+          <ul className="list-disc pl-6 space-y-2">
+            <li>Server Component をデフォルト。クライアントは必要最小限</li>
+            <li>データ取得は <b>fetcher（SWR/React Query 等）</b> に集約し、UI 直接 fetch を避ける</li>
+            <li>当日出勤 100名でも快適表示（<b>仮想スクロール</b> 検討）</li>
+            <li>一覧は 30件固定ページング＋サマリ件数</li>
+            <li>アクセシビリティ：フォーム label、モーダルのフォーカストラップ、印刷用 CSS</li>
+          </ul>
+        </Section>
+
+        <Section id="security" title="6. セキュリティ / 個人情報">
+          <ul className="list-disc pl-6 space-y-2">
+            <li>XSS/SQLi/SSRF 対策。外部URL取得は禁止（必要時はホワイトリスト）</li>
+            <li>S3 署名URL：<b>最小権限 IAM</b>、TTL 短め（~10分）、Content-Type 固定</li>
+            <li>身分証は <b>S3キーのみ保持</b>、URLは都度署名。<b>90日ライフサイクル</b>（要件で調整）</li>
+            <li>ログにPIIを出さない。トークン/IDはマスク</li>
+          </ul>
+        </Section>
+
+        <Section id="test" title="7. テスト / 品質">
+          <ul className="list-disc pl-6 space-y-2">
+            <li>Unit：Jest（Service/Util）</li>
+            <li>Integration：Supertest（Controller + Prisma with test DB）</li>
+            <li>E2E：主要フロー（応募→承認→本登録、当日出勤一覧、NG除外マッチング）</li>
+            <li>カバレッジ目標：<b>lines 70% / クリティカル 90%</b></li>
+            <li>テストデータは <b>factory</b> で生成、固定ID依存を避ける</li>
+          </ul>
+        </Section>
+
+        <Section id="docs" title="8. ドキュメント / 変更管理">
+          <ul className="list-disc pl-6 space-y-2">
+            <li>OpenAPI（Swagger）は常に更新。PRに差分のスクショ/リンクを添付</li>
+            <li>決定事項は ADR（軽量）で <code>/docs/adr/</code> に保存</li>
+            <li>ERD が唯一の真実源。変更は ERD → PR → Prisma 反映の順</li>
+          </ul>
+        </Section>
+
+        <Section id="retry" title="9. 例外・リトライ方針 / Webhook">
+          <ul className="list-disc pl-6 space-y-2">
+            <li>S3・外部APIは指数バックオフ（最大3回）</li>
+            <li>DBトランザクション失敗時は明示ロールバック、再試行は idempotency key</li>
+            <li>Webhook は署名検証必須。200以外は再試行</li>
+          </ul>
+        </Section>
+
+        <Section id="pr-check" title="10. PR レビュー チェックリスト">
+          <ul className="list-disc pl-6 space-y-2">
+            <li>TypeScript エラーなし、<code>any</code> 回避、型定義妥当</li>
+            <li>DTO の <code>class-validator</code> が完全</li>
+            <li>ページング30件固定・検索条件が API と一致</li>
+            <li>監査ログ（追加/更新/削除）が記録される</li>
+            <li>S3 は <b>s3_key のみ</b> 保存（直リンク保存なし）</li>
+            <li>ログ/レスポンスに PII が含まれない</li>
+          </ul>
+        </Section>
+
+        <Section id="starter" title="スターター同梱（コピー用）">
+          <h4 className="font-semibold">.prettierrc（推奨）</h4>
+          <Code
+            lang="json"
+            code={`{
+  "singleQuote": true,
+  "semi": true,
+  "trailingComma": "all",
+  "printWidth": 100,
+  "tabWidth": 2
+}`}
+          />
+          <h4 className="mt-4 font-semibold">.eslintrc.js（推奨）</h4>
+          <Code
+            lang="js"
+            code={`module.exports = {
+  root: true,
+  parser: '@typescript-eslint/parser',
+  plugins: ['@typescript-eslint', 'import'],
+  extends: ['next/core-web-vitals', 'plugin:@typescript-eslint/recommended'],
+  rules: {
+    'import/order': [
+      'error',
+      {
+        groups: ['builtin', 'external', 'internal', ['parent', 'sibling', 'index']],
+        pathGroups: [{ pattern: '@/**', group: 'internal' }],
+        'newlines-between': 'always',
+        alphabetize: { order: 'asc', caseInsensitive: true }
+      }
+    ],
+    '@typescript-eslint/no-explicit-any': 'error'
+  }
+};`}
+          />
+          <h4 className="mt-4 font-semibold">package.json（スクリプト例）</h4>
+          <Code
+            lang="json"
+            code={`{
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  }
+}`}
+          />
+          <h4 className="mt-4 font-semibold">tsconfig.json（抜粋）</h4>
+          <Code
+            lang="json"
+            code={`{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "jsx": "preserve",
+    "baseUrl": ".",
+    "paths": { "@/*": ["*"] },
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
+  }
+}`}
+          />
+          <h4 className="mt-4 font-semibold">.gitignore（抜粋）</h4>
+          <Code lang="txt" code={`node_modules\n.next\n.env.local\naudit.json`} />
+        </Section>
+
+        <footer className="pt-8 border-t border-[#24304a] text-xs text-[#9aa3b2]">
+          <p>© Tiara Portal Team — Coding Rules v1.0（確定）。必要に応じてADRで更新してください。</p>
+        </footer>
+      </div>
+    </main>
+  );
+};
+
+export default Page;
+
+/* ------------------------- UI Helpers ------------------------- */
+const Nav: React.FC = () => (
+  <nav className="sticky top-0 z-10 -mt-6 backdrop-blur bg-[#0b1020]/80 border-y border-[#24304a]">
+    <div className="max-w-4xl mx-auto px-4 py-3 text-sm overflow-x-auto whitespace-nowrap">
+      <a className="mr-4 hover:underline" href="#intro">0. 前提</a>
+      <a className="mr-4 hover:underline" href="#naming">1. 命名/構成</a>
+      <a className="mr-4 hover:underline" href="#ts">2. TypeScript</a>
+      <a className="mr-4 hover:underline" href="#nest">3. NestJS</a>
+      <a className="mr-4 hover:underline" href="#prisma">4. Prisma/DB</a>
+      <a className="mr-4 hover:underline" href="#frontend">5. Frontend</a>
+      <a className="mr-4 hover:underline" href="#security">6. セキュリティ</a>
+      <a className="mr-4 hover:underline" href="#test">7. テスト</a>
+      <a className="mr-4 hover:underline" href="#docs">8. ドキュメント</a>
+      <a className="mr-4 hover:underline" href="#retry">9. リトライ/Webhook</a>
+      <a className="mr-4 hover:underline" href="#pr-check">10. PRチェック</a>
+      <a className="hover:underline" href="#starter">スターター</a>
+    </div>
+  </nav>
+);
+
+const Section: React.FC<{ id: string; title: string; children: React.ReactNode }> = ({
+  id,
+  title,
+  children,
+}) => (
+  <section
+    id={id}
+    className="bg-[#111733] border border-[#24304a] rounded-2xl p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)_inset]"
+  >
+    <h2 className="text-xl font-semibold mb-3">{title}</h2>
+    <div className="text-sm leading-relaxed text-[#d5d9e3]">{children}</div>
+  </section>
+);
+
+const Code: React.FC<{ lang?: string; code: string }> = ({ lang, code }) => (
+  <pre className="relative mt-3 overflow-x-auto rounded-xl border border-[#24304a] bg-[#0a0f22] p-4 text-xs">
+    {lang ? <span className="absolute right-3 top-2 text-[10px] text-[#8fa1c1]">{lang}</span> : null}
+    <code>{code}</code>
+  </pre>
+);
+</file>
+
+<file path="pages/progress.tsx">
+// pages/progress.tsx
+import Head from "next/head";
+import dynamic from "next/dynamic";
+import { useEffect, useMemo, useState } from "react";
+import dayjs from "dayjs";
+import { loadTasks, type Task } from "../lib/tasksLoader";
+
+function weekRange(base: dayjs.Dayjs) {
+  return { start: base.startOf("week"), end: base.endOf("week") };
+}
+function overlapsWeek(start: string | undefined, end: string | undefined, wkStart: dayjs.Dayjs, wkEnd: dayjs.Dayjs) {
+  const ymd = (s?: string) => (s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? dayjs(s).startOf("day") : null);
+  if (!start && !end) return false;
+  const s = ymd(start) ?? dayjs("1900-01-01");
+  const e = ymd(end) ?? dayjs("2999-12-31");
+  return s.isBefore(wkEnd) && e.isAfter(wkStart);
+}
+
+function ProgressInner() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await loadTasks();
+        setTasks(data);
+        setLoading(false);
+      } catch (e: any) {
+        setError(e?.message || "読み込み中にエラーが発生しました");
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const summary = useMemo(() => {
+    if (tasks.length === 0) return { avg: 0, total: 0, started: 0, finished: 0 };
+    const avg = Math.round(tasks.reduce((acc, t) => acc + (t.progress ?? 0), 0) / tasks.length);
+    const now = dayjs();
+    const ymd = (s?: string) => (s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? dayjs(s).startOf("day") : null);
+    const started = tasks.filter((t) => (t.start && ymd(t.start)?.isBefore(now)) || t.started).length;
+    const finished = tasks.filter((t) => t.progress === 100 || t.done).length;
+    return { avg, total: tasks.length, started, finished };
+  }, [tasks]);
+
+  const now = dayjs();
+  const thisWeek = weekRange(now);
+  const nextWeek = weekRange(now.add(1, "week"));
+
+  const tasksThisWeek = useMemo(
+    () => tasks.filter((t) => overlapsWeek(t.start, t.end, thisWeek.start, thisWeek.end)),
+    [tasks, thisWeek.start, thisWeek.end]
+  );
+  const tasksNextWeek = useMemo(
+    () => tasks.filter((t) => overlapsWeek(t.start, t.end, nextWeek.start, nextWeek.end)),
+    [tasks, nextWeek.start, nextWeek.end]
+  );
+
+  return (
+    <>
+      <Head><title>進捗ダッシュボード</title></Head>
+      <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem" }}>
+        <h1>📈 進捗ダッシュボード</h1>
+
+        {loading && <p>読み込み中...</p>}
+        {error && <p style={{ color: "crimson" }}>エラー：{error}</p>}
+
+        {!loading && !error && (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "12px", margin: "16px 0" }}>
+              <Card title="平均進捗"><Big>{summary.avg}%</Big></Card>
+              <Card title="タスク総数"><Big>{summary.total}</Big></Card>
+              <Card title="開始済み"><Big>{summary.started}</Big></Card>
+              <Card title="完了済み"><Big>{summary.finished}</Big></Card>
+            </div>
+
+            <Section title={`🗓 今週 (${thisWeek.start.format("YYYY/MM/DD")} - ${thisWeek.end.format("YYYY/MM/DD")})`} tasks={tasksThisWeek} />
+            <Section title={`🗓 来週 (${nextWeek.start.format("YYYY/MM/DD")} - ${nextWeek.end.format("YYYY/MM/DD")})`} tasks={tasksNextWeek} />
+          </>
+        )}
+      </main>
+    </>
+  );
+}
+
+function Card(props: { title: string; children: any }) {
+  return (
+    <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, padding: 12, boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
+      <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 6 }}>{props.title}</div>
+      <div>{props.children}</div>
+    </div>
+  );
+}
+function Big(props: { children: any }) {
+  return <div style={{ fontSize: 28, fontWeight: 700, color: "#111827" }}>{props.children}</div>;
+}
+function Section(props: { title: string; tasks: Task[] }) {
+  return (
+    <section style={{ marginTop: 24 }}>
+      <h2 style={{ color: "#2563eb" }}>{props.title}</h2>
+      {props.tasks.length === 0 ? (
+        <p style={{ color: "#6b7280" }}>該当タスクはありません。</p>
+      ) : (
+        <div style={{ marginTop: 8, display: "grid", gap: 8 }}>
+          {props.tasks.map((t, i) => <TaskItem key={i} task={t} />)}
+        </div>
+      )}
+    </section>
+  );
+}
+function TaskItem({ task }: { task: Task }) {
+  const start = task.start ?? "—";
+  const end = task.end ?? "—";
+  const pct = Math.max(0, Math.min(100, Math.round(task.progress ?? 0)));
+  return (
+    <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, padding: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        <div style={{ fontWeight: 600, color: "#111827" }}>{task.title}</div>
+        <div style={{ fontSize: 12, color: "#6b7280" }}>{start} → {end}</div>
+      </div>
+      <div style={{ marginTop: 8, height: 10, background: "#f3f4f6", borderRadius: 999 }}>
+        <div style={{ width: `${pct}%`, height: "100%", borderRadius: 999, background: "#60a5fa" }} />
+      </div>
+      <div style={{ marginTop: 6, fontSize: 12, color: "#374151" }}>
+        進捗: <strong>{pct}%</strong>
+        {task.owner ? <>　/ 担当: {task.owner}</> : null}
+        {task.status ? <>　/ 状態: {task.status}</> : null}
+      </div>
+    </div>
+  );
+}
+
+function Progress() { return <ProgressInner />; }
+export default dynamic(() => Promise.resolve(Progress), { ssr: false });
+</file>
+
+<file path="pages/questionnaire.tsx">
+// pages/questionnaire.tsx
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+
+type Question   = { id: string; label: string; placeholder?: string };
+type Section    = { id: string; title: string; items: Question[] };
+type SchemaData = { version: string; sections: Section[] };
+type AnswersData = Record<string, string>;
+
+/** フル幅＋縦オートリサイズのテキストエリア */
+function AutoTextarea({
+  value,
+  onChange,
+  placeholder,
+  minRows = 3,
+  maxPx = 600,
+}: {
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  placeholder?: string;
+  minRows?: number;
+  maxPx?: number;
+}) {
+  const ref = useRef<HTMLTextAreaElement | null>(null);
+
+  const autoresize = () => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    const lineHeight = parseInt(getComputedStyle(el).lineHeight || '20', 10);
+    const minHeight = lineHeight * minRows + 12;
+    el.style.height = Math.max(minHeight, Math.min(el.scrollHeight, maxPx)) + 'px';
+  };
+
+  useEffect(() => { autoresize(); }, [value]);
+  useEffect(() => { autoresize(); }, []);
+
+  return (
+    <textarea
+      ref={ref}
+      rows={minRows}
+      value={value}
+      onChange={(e) => { onChange(e); requestAnimationFrame(autoresize); }}
+      placeholder={placeholder}
+      style={{
+        width: '100%',
+        boxSizing: 'border-box',
+        resize: 'none',
+        padding: '12px',
+        border: '1px solid #d1d5db',
+        borderRadius: 8,
+        lineHeight: '1.6',
+        fontSize: 14,
+        background: '#fff',
+        maxHeight: maxPx,
+      }}
+    />
+  );
+}
+
+/** 初期スキーマ（Excel取込のフォールバック） */
+const DEFAULT_SCHEMA: SchemaData = {
+  version: 'v1',
+  sections: [
+    {
+      id: '1-業務運用の確定事項',
+      title: '1. 業務・運用の確定事項',
+      items: [
+        { id: '1-業務運用の確定事項-q1', label: '【役割と端末】', placeholder: 'キャスト/管理者（担当スタッフ）/派遣先（来年） × キャスト＝スマホ／管理者・派遣先＝PC' },
+        { id: '1-業務運用の確定事項-q2', label: '【オペレーションの正】', placeholder: '登録 ⇨ 面談 ⇨ 合否 ⇨ 出勤連絡 ⇨ 当日欠勤・緊急招集 ⇨ 配置 ⇨ 日報 ⇨ 請求・請求書' },
+        { id: '1-業務運用の確定事項-q3', label: '【SLA/反応速度】', placeholder: 'ダッシュボード反映までの目標（LINE連絡 → 10秒以内反映）' },
+        { id: '1-業務運用の確定事項-q4', label: '【監査・履歴】', placeholder: '誰が何をいつ変えたか（監査ログの粒度）' },
+      ],
+    },
+    {
+      id: '2-画面に出す情報の最終リスト一覧詳細',
+      title: '2. 画面に出す情報の最終リスト（一覧・詳細）',
+      items: [
+        { id: '2-画面に出す情報の最終リスト一覧詳細-q1', label: '【キャスト一覧30件/ページ固定で表示する項目の確定】', placeholder: 'モック画面提出済み（要確認）' },
+        { id: '2-画面に出す情報の最終リスト一覧詳細-q2', label: '【キャストカード詳細でのみ出す項目】', placeholder: 'モック画面提出済み（要確認）' },
+        { id: '2-画面に出す情報の最終リスト一覧詳細-q3', label: '【アイコンバッチ定義】', placeholder: 'バリエーション種類の確定' },
+        { id: '2-画面に出す情報の最終リスト一覧詳細-q4', label: '【並び順の優先規則】', placeholder: 'デフォルトは何順？（例：評価 → 時給 → 名前）' },
+      ],
+    },
+    {
+      id: '3-絞り込み検索の仕様',
+      title: '3. 絞り込み・検索の仕様',
+      items: [
+        { id: '3-絞り込み検索の仕様-q1', label: '【絞り込み種類】', placeholder: 'キーワード検索・担当者・時給・ジャンル・飲酒の可否' },
+        { id: '3-絞り込み検索の仕様-q2', label: '【複合条件の解決順】', placeholder: 'NG除外（店舗側/キャスト側の双方） ⇨ 出勤中のみ ⇨ ソート' },
+      ],
+    },
+    {
+      id: '4-マッチングの業務ルール',
+      title: '4. マッチングの業務ルール',
+      items: [
+        { id: '4-マッチングの業務ルール-q1', label: '【自動化の範囲】', placeholder: 'マッチングの配置確定作業は人力で良い？' },
+        { id: '4-マッチングの業務ルール-q2', label: '【条件】', placeholder: '充足条件（必要人数・リクエストキーワード）と除外条件（NG店舗）' },
+        { id: '4-マッチングの業務ルール-q3', label: '【配置確定の承認フロー】', placeholder: '誰がOKを出すか／差し戻し／配置確定の操作画面はDBで合っているか／キャスト詳細画面で店舗選択必須／差し戻しのフロー要確認' },
+      ],
+    },
+    {
+      id: '5-データ更新整合性',
+      title: '5. データ更新・整合性',
+      items: [
+        { id: '5-データ更新整合性-q1', label: '【出勤・欠勤・緊急招集の通知経路】', placeholder: 'LINEのみ／メール併用なのか？' },
+        { id: '5-データ更新整合性-q2', label: '【リアルタイムの定義】', placeholder: 'Pushで即時／ポーリング何秒' },
+        { id: '5-データ更新整合性-q3', label: '【画像アップロード（身分証）】', placeholder: '保存先・保持期間・マスキング方針の確定' },
+      ],
+    },
+    {
+      id: '6-権限可視性rbac',
+      title: '6. 権限・可視性（RBAC）',
+      items: [
+        { id: '6-権限可視性rbac-q1', label: '【（仮）キャスト用】', placeholder: '自分のプロフィール、シフト申請、担当へ連絡（当日欠勤・当日出勤）、既読未読、通知、出退勤連絡' },
+        { id: '6-権限可視性rbac-q2', label: '【エンド用】', placeholder: 'ダッシュボード、スケジュール管理、キャスト管理、店舗管理、チャット（公式LINE）、SOS通知、申請承認、設定' },
+        { id: '6-権限可視性rbac-q3', label: '【（仮）派遣先ビュー】', placeholder: '閲覧範囲（自店舗のみ）、評価入力権限' },
+      ],
+    },
+    {
+      id: '7-非機能要件',
+      title: '7. 非機能要件',
+      items: [
+        { id: '7-非機能要件-q1', label: '【目標レスポンス（P95/P99）、同時利用者想定】', placeholder: '自由記述' },
+        { id: '7-非機能要件-q2', label: '【バックアップ／リストア、個人情報保護（アクセス制御・暗号化・マスキング）】', placeholder: '自由記述' },
+        { id: '7-非機能要件-q3', label: '【監視（死活・エラーレート・通知）と障害対応フロー】', placeholder: '自由記述' },
+      ],
+    },
+    {
+      id: '8-linechatwoot-運用設計',
+      title: '8. LINE/Chatwoot 運用設計',
+      items: [
+        { id: '8-linechatwoot-運用設計-q1', label: '【公式LINEの構成（スタッフ複数紐付け）とChatwootの収容（インボックス/チーム/権限）】', placeholder: '自由記述' },
+        { id: '8-linechatwoot-運用設計-q2', label: '【送受信はテキストのみ、テンプレ化する定型文（欠勤受付、緊急招集、イベント告知）】', placeholder: '自由記述' },
+        { id: '8-linechatwoot-運用設計-q3', label: '【既読・未読／反応時間のKPIとダッシュボード反映】', placeholder: '自由記述' },
+      ],
+    },
+  ],
+};
+
+const LS_SCHEMA_KEY = 'questionnaire.schema.latest';
+const LS_ANS_KEY    = 'questionnaire.answers.latest';
+
+export default function QuestionnairePage() {
+  const [author, setAuthor]   = useState('');
+  const [schema, setSchema]   = useState<SchemaData>(DEFAULT_SCHEMA);
+  const [answers, setAnswers] = useState<AnswersData>({});
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving]   = useState(false);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [errMsg, setErrMsg]   = useState<string | null>(null);
+
+  // 初期ロード：Supabaseの最新（無ければ localStorage → DEFAULT）
+  useEffect(() => {
+    (async () => {
+      try {
+        const s = await fetch('/api/questionnaire/schema/load').then(r => r.json()).catch(() => null);
+        if (s?.ok && s?.data?.data) {
+          setSchema(s.data.data as SchemaData);
+          localStorage.setItem(LS_SCHEMA_KEY, JSON.stringify(s.data.data));
+        } else {
+          const raw = localStorage.getItem(LS_SCHEMA_KEY);
+          if (raw) setSchema(JSON.parse(raw));
+        }
+      } catch {}
+      try {
+        const a = await fetch('/api/questionnaire/answers/load').then(r => r.json()).catch(() => null);
+        if (a?.ok && a?.data?.data) {
+          setAnswers(a.data.data as AnswersData);
+          localStorage.setItem(LS_ANS_KEY, JSON.stringify(a.data.data));
+        } else {
+          const raw = localStorage.getItem(LS_ANS_KEY);
+          if (raw) setAnswers(JSON.parse(raw));
+        }
+      } catch {}
+    })();
+  }, []);
+
+  // スキーマ変更時：answers のキーを補完
+  useEffect(() => {
+    const ids = new Set(schema.sections.flatMap(sec => sec.items.map(i => i.id)));
+    setAnswers(prev => {
+      const next = { ...prev };
+      ids.forEach(id => { if (!(id in next)) next[id] = ''; });
+      return next;
+    });
+  }, [schema]);
+
+  // 回答の自動保存（800ms デバウンス）
+  const debRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (debRef.current) window.clearTimeout(debRef.current);
+    debRef.current = window.setTimeout(async () => {
+      try {
+        setSaving(true);
+        const res = await fetch('/api/questionnaire/answers/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ author, data: answers }),
+        });
+        const json = await res.json();
+        if (!json?.ok) throw new Error(json?.error || '保存に失敗しました');
+        setSaveMsg('自動保存しました');
+        localStorage.setItem(LS_ANS_KEY, JSON.stringify(answers));
+      } catch {
+        localStorage.setItem(LS_ANS_KEY, JSON.stringify(answers));
+        setSaveMsg('ローカルに自動保存しました（オフライン）');
+      } finally {
+        setSaving(false);
+        setTimeout(() => setSaveMsg(null), 1500);
+      }
+    }, 800);
+    return () => { if (debRef.current) window.clearTimeout(debRef.current); };
+  }, [answers, author]);
+
+  const onChangeAnswer = (id: string, val: string) =>
+    setAnswers(prev => ({ ...prev, [id]: val }));
+
+  // スキーマ保存
+  const saveSchema = async () => {
+    try {
+      setErrMsg(null);
+      setSaving(true);
+      const res = await fetch('/api/questionnaire/schema/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ author, data: schema }),
+      });
+      const json = await res.json();
+      if (!json?.ok) throw new Error(json?.error || 'スキーマ保存失敗');
+      localStorage.setItem(LS_SCHEMA_KEY, JSON.stringify(schema));
+      setSaveMsg('スキーマを保存しました');
+    } catch (e: any) {
+      setErrMsg(e?.message ?? 'スキーマ保存失敗');
+    } finally {
+      setSaving(false);
+      setTimeout(() => setSaveMsg(null), 1500);
+    }
+  };
+
+  // 項目追加
+  const addQuestion = (secId: string) => {
+    setSchema(prev => {
+      const copy: SchemaData = JSON.parse(JSON.stringify(prev));
+      const sec = copy.sections.find(s => s.id === secId)!;
+      const newId = `${secId}-q${sec.items.length + 1}`;
+      sec.items.push({ id: newId, label: `【新規項目 ${sec.items.length + 1}】` });
+      return copy;
+    });
+  };
+
+  return (
+    <main
+      style={{
+        margin: '0 auto',
+        maxWidth: 960,
+        padding: 24,
+        fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif',
+        color: '#111827',
+      }}
+    >
+      <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>
+        質問票（単一ページ・常に最新／自動保存）
+      </h1>
+      <p style={{ fontSize: 13, color: '#4b5563', marginBottom: 20 }}>
+        Excelから取り込んだ質問を初期表示。回答は自動保存（API経由／失敗時はローカル）。
+      </p>
+
+      {/* ヘッダー操作行 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+        <label style={{ fontSize: 13 }}>作成者（任意）</label>
+        <input
+          value={author}
+          onChange={(e) => setAuthor(e.target.value)}
+          placeholder="例：永井"
+          style={{
+            border: '1px solid #d1d5db',
+            borderRadius: 6,
+            padding: '6px 8px',
+            width: 220,
+            boxSizing: 'border-box',
+          }}
+        />
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12, fontSize: 13 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input type="checkbox" checked={editing} onChange={(e) => setEditing(e.target.checked)} />
+            質問編集モード
+          </label>
+          <button
+            onClick={saveSchema}
+            disabled={!editing || saving}
+            style={{
+              padding: '6px 10px',
+              borderRadius: 8,
+              background: editing && !saving ? '#111827' : '#9ca3af',
+              color: '#fff',
+              fontWeight: 700,
+              border: 'none',
+              cursor: editing && !saving ? 'pointer' : 'default',
+            }}
+          >
+            {saving ? '保存中…' : 'スキーマ保存'}
+          </button>
+        </div>
+      </div>
+
+      {/* セクション */}
+      {schema.sections.map((sec) => (
+        <section
+          key={sec.id}
+          style={{
+            border: '1px solid #e5e7eb',
+            borderRadius: 12,
+            padding: 20,
+            background: '#fff',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+            marginBottom: 24,
+          }}
+        >
+          {/* タイトル行 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+            {editing ? (
+              <input
+                value={sec.title}
+                onChange={(e) =>
+                  setSchema((prev) => {
+                    const copy: SchemaData = JSON.parse(JSON.stringify(prev));
+                    copy.sections.find((x) => x.id === sec.id)!.title = e.target.value;
+                    return copy;
+                  })
+                }
+                style={{
+                  fontSize: 18,
+                  fontWeight: 700,
+                  border: '1px solid #d1d5db',
+                  borderRadius: 8,
+                  padding: '8px 10px',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                }}
+              />
+            ) : (
+              <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{sec.title}</h2>
+            )}
+            {editing && (
+              <button
+                onClick={() => addQuestion(sec.id)}
+                style={{
+                  fontSize: 13,
+                  padding: '6px 10px',
+                  border: '1px solid #d1d5db',
+                  background: '#f9fafb',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                }}
+              >
+                項目を追加
+              </button>
+            )}
+          </div>
+
+          {/* 設問群 */}
+          <div>
+            {sec.items.map((q) => (
+              <div key={q.id} style={{ marginBottom: 20 }}>
+                {editing ? (
+                  <input
+                    value={q.label}
+                    onChange={(e) =>
+                      setSchema((prev) => {
+                        const copy: SchemaData = JSON.parse(JSON.stringify(prev));
+                        const s = copy.sections.find((x) => x.id === sec.id)!;
+                        const qi = s.items.find((x) => x.id === q.id)!;
+                        qi.label = e.target.value;
+                        return copy;
+                      })
+                    }
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      marginBottom: 8,
+                      padding: '8px 10px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: 6,
+                      fontWeight: 700,
+                    }}
+                  />
+                ) : (
+                  <label
+                    style={{
+                      display: 'block',
+                      marginBottom: 8,
+                      fontSize: 14,
+                      fontWeight: 700,
+                      color: '#1f2937',
+                    }}
+                  >
+                    {q.label}
+                  </label>
+                )}
+
+                <AutoTextarea
+                  value={answers[q.id] ?? ''}
+                  onChange={(e) => onChangeAnswer(q.id, e.target.value)}
+                  placeholder={q.placeholder ?? '自由記述'}
+                  minRows={3}
+                  maxPx={600}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
+
+      {/* ステータス表示 */}
+      <div style={{ marginTop: 12, fontSize: 13 }}>
+        {saveMsg && <span style={{ color: '#059669', marginRight: 12 }}>{saveMsg}</span>}
+        {errMsg && <span style={{ color: '#dc2626' }}>{errMsg}</span>}
+      </div>
+    </main>
+  );
+}
+</file>
+
+<file path="pages/rules.tsx">
+import Head from "next/head";
+
+export default function Rules() {
+  return (
+    <>
+      <Head>
+        <title>Tiara 開発ルール</title>
+      </Head>
+      <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem" }}>
+        <h1>⚙️ Tiara 開発ルール v1.0</h1>
+        <p>
+          目的：年内MVP（キャストPWA + エンド/管理ダッシュボード）を
+          安定・安全・素早く届ける。以後の横展開・AIマッチング拡張を見据えた作りにする。
+        </p>
+
+        <h2>0.前提</h2>
+        <ul>
+          <li>インフラ: VPS / Linux</li>
+          <li>Backend: NestJS + Prisma + PostgreSQL16</li>
+          <li>Storage: Amazon S3（private, SSE, 署名付きURL）</li>
+          <li>認証: キャスト=LINE OIDC、エンド/管理=Email+PW+JWT</li>
+          <li>RBAC: 複数ロール（roles / user_roles）</li>
+          <li>チャット: Chatwoot（テキストのみ）</li>
+          <li>勤怠: MosPは将来連携、MVPは自前shifts</li>
+        </ul>
+
+        <h2>1. リポジトリ / ブランチ / リリース</h2>
+        <ul>
+          <li>単一モノレポ推奨</li>
+          <li>Trunk-Based開発、Conventional Commits</li>
+          <li>PRは小さく、レビュー必須、CI green必須</li>
+          <li>タグ/リリース: vX.Y.Z</li>
+        </ul>
+
+        <h2>2. コーディング規約（共通）</h2>
+        <ul>
+          <li>TypeScript 5+</li>
+          <li>Lint: ESLint + Prettier</li>
+          <li>命名: camelCase, PascalCase, snake_case</li>
+          <li>DB: UTC時刻、created_at/updated_at必須</li>
+          <li>ファイル/画像はS3、サーバ直置き禁止</li>
+        </ul>
+
+        <h2>3. Backend（NestJS）</h2>
+        <ul>
+          <li>層構成: controller → service → repository(prisma)</li>
+          <li>DTOはclass-validator必須</li>
+          <li>API: /api/v1, ページング30件固定</li>
+          <li>認証: JWT、認可: Guard+RBAC</li>
+          <li>監査ログ: 重要操作は差分保存</li>
+          <li>S3: 署名付きURL TTL=10分、身分証は90日で削除</li>
+        </ul>
+
+        <h2>4. データ設計（DB）</h2>
+        <ul>
+          <li>ERDを唯一の真実源とする</li>
+          <li>ID: UUID v4、外部IDは別列でunique</li>
+          <li>検索列にindex付与</li>
+        </ul>
+
+        <h2>5. フロントエンド</h2>
+        <ul>
+          <li>Cast PWA: Next.js/React + TS</li>
+          <li>UIはデザイナー決定を厳守</li>
+          <li>当日出勤100名でも快適に（仮想リスト検討）</li>
+          <li>チャットUIはテキストのみ</li>
+        </ul>
+
+        <h2>6. テスト / 品質</h2>
+        <ul>
+          <li>Unit=Jest, Integration=Supertest, E2E=応募フロー/出勤一覧/NG除外</li>
+          <li>カバレッジ目標: lines70%, critical path90%</li>
+        </ul>
+
+        <h2>7. デプロイ / CI</h2>
+        <ul>
+          <li>CI: lint → typecheck → test → build → prisma diff</li>
+          <li>CD: main→Staging自動、Prodは手動承認</li>
+          <li>監視: /health, /ready</li>
+        </ul>
+
+        <h2>8. 監視・運用</h2>
+        <ul>
+          <li>ログ: JSON構造化、相関ID</li>
+          <li>メトリクス: Prometheus</li>
+          <li>トレーシング: OpenTelemetry</li>
+          <li>SLA: LINEイベント→反映 ≤10秒</li>
+        </ul>
+
+        <h2>9. セキュリティ・個人情報</h2>
+        <ul>
+          <li>S3 IAMは発行専用、DBは専用ユーザ</li>
+          <li>身分証は所定期間で削除</li>
+          <li>NG/指名操作は監査ログ必須</li>
+        </ul>
+
+        <h2>10. API デザイン規約</h2>
+        <ul>
+          <li>ベース: /api/v1</li>
+          <li>認証: Bearer JWT</li>
+          <li>ページング30件固定</li>
+          <li>日付はISO8601 UTC</li>
+          <li>エラー形式: {"{ error_code, message, details? }"}</li>
+        </ul>
+
+        <h2>11. Definition of Done</h2>
+        <ul>
+          <li>ERD/Swagger更新済</li>
+          <li>Lint/Typecheck/Test/Build通過</li>
+          <li>入力検証+認可Guard+監査ログあり</li>
+          <li>監視系（ログ/メトリクス/HC）整備済</li>
+        </ul>
+
+        <h2>12. PRレビュー チェックリスト</h2>
+        <ul>
+          <li>仕様差分がPRに含まれる</li>
+          <li>入力検証・認可が実装されている</li>
+          <li>ページング/検索が整合している</li>
+          <li>S3直リンク保存していない</li>
+          <li>ログに個人情報を出していない</li>
+        </ul>
+
+        <h2>13. 環境変数（例）</h2>
+        <pre>
+{`NODE_ENV=production
+PORT=8080
+DATABASE_URL=postgresql://...
+JWT_SECRET=...
+LINE_CHANNEL_ID=...
+LINE_CHANNEL_SECRET=...
+S3_BUCKET=tiara-private
+S3_REGION=ap-northeast-1
+S3_ACCESS_KEY_ID=...
+S3_SECRET_ACCESS_KEY=...
+CHATWOOT_BASE_URL=...
+CHATWOOT_API_TOKEN=...`}
+        </pre>
+
+        <h2>14. 変更手続き</h2>
+        <ul>
+          <li>Issue → ADR → PRの順で反映</li>
+          <li>重大変更はアナウンス＋移行手順必須</li>
+        </ul>
+      </main>
+    </>
+  );
+}
+</file>
+
+<file path="pages/wbs.tsx">
+// pages/wbs.tsx
+import Head from "next/head";
+import dynamic from "next/dynamic";
+import { useEffect, useMemo, useState } from "react";
+import dayjs from "dayjs";
+import { loadTasks, type Task } from "../lib/tasksLoader";
+
+// 入力ゆれを YYYY-MM-DD に正規化（できない場合はそのまま返す）
+const normalizeDateInput = (raw: string) => {
+  if (!raw) return "";
+  let s = raw.trim();
+  s = s.replace(/[./]/g, "-");
+  const m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  return s;
+};
+
+// 厳密に YYYY-MM-DD のときのみ Dayjs を返す（判別不能は null）
+const ymd = (s?: string) =>
+  s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? dayjs(s).startOf("day") : null;
+
+const calcProgress = (t: Task) => (t.done ? 100 : t.started ? 50 : 0);
+
+const isStarted = (t: Task) => {
+  if (t.done) return true;
+  const startD = ymd(t.start);
+  const today = dayjs().startOf("day");
+  if (startD && startD.isAfter(today)) return false;
+  if (t.started) return true;
+  if (startD && !startD.isAfter(today)) return true;
+  return false;
+};
+
+const overlaps = (start?: string, end?: string, wkStart?: dayjs.Dayjs, wkEnd?: dayjs.Dayjs) => {
+  if (!start && !end) return false;
+  const sD = ymd(start) ?? dayjs("1900-01-01");
+  const eD = ymd(end) ?? dayjs("2999-12-31");
+  return sD.isBefore(wkEnd!) && eD.isAfter(wkStart!);
+};
+
+function WbsPageInner() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await loadTasks();
+        const normalized = data.map((t) => ({
+          ...t,
+          start: t.start ? normalizeDateInput(t.start) : "",
+          end: t.end ? normalizeDateInput(t.end) : "",
+          started: isStarted(t),
+          done: !!t.done,
+          progress: t.progress ?? calcProgress(t),
+        }));
+        setTasks(normalized);
+        setLoading(false);
+      } catch (e: any) {
+        setError(e?.message || "読み込み中にエラーが発生しました");
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const saveTasks = async (next: Task[]) => {
+    setTasks(next);
+    await fetch("/api/tasks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(next),
+    });
+  };
+
+  const patchTask = (idx: number, patch: Partial<Task>) => {
+    const next = tasks.map((t, i) => {
+      if (i !== idx) return t;
+      let updated = { ...t, ...patch };
+      if (patch.start !== undefined) updated.start = normalizeDateInput(patch.start || "");
+      if (patch.end !== undefined) updated.end = normalizeDateInput(patch.end || "");
+      if (patch.done !== undefined) {
+        if (patch.done && !t.done && !updated.end) updated.end = dayjs().format("YYYY-MM-DD");
+        if (!patch.done && t.done) updated.end = "";
+      }
+      if (patch.started !== undefined) {
+        if (patch.started && !t.started && !updated.start) updated.start = dayjs().format("YYYY-MM-DD");
+        if (!patch.started && t.started) updated.start = "";
+      }
+      updated.started = isStarted(updated);
+      updated.progress = calcProgress(updated);
+      return updated;
+    });
+    saveTasks(next);
+  };
+
+  const summary = useMemo(() => {
+    if (tasks.length === 0) return { avg: 0, total: 0, started: 0, finished: 0 };
+    const total = tasks.length;
+    const started = tasks.filter((t) => isStarted(t)).length;
+    const finished = tasks.filter((t) => t.done).length;
+    const avg = Math.round(tasks.reduce((acc, t) => acc + (t.progress ?? calcProgress(t)), 0) / total);
+    return { avg, total, started, finished };
+  }, [tasks]);
+
+  const now = dayjs();
+  const thisWeekStart = now.startOf("week");
+  const thisWeekEnd = now.endOf("week");
+  const nextWeekStart = now.add(1, "week").startOf("week");
+  const nextWeekEnd = now.add(1, "week").endOf("week");
+
+  const tasksThisWeek = tasks.filter((t) => overlaps(t.start, t.end, thisWeekStart, thisWeekEnd));
+  const tasksNextWeek = tasks.filter((t) => overlaps(t.start, t.end, nextWeekStart, nextWeekEnd));
+
+  return (
+    <>
+      <Head><title>WBSガントチャート</title></Head>
+      <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem" }}>
+        <h1>📊 WBSガントチャート</h1>
+
+        {loading && <p>読み込み中...</p>}
+        {error && <p style={{ color: "crimson" }}>エラー：{error}</p>}
+
+        {!loading && !error && (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12, margin: "16px 0" }}>
+              <Card title="平均進捗"><Big>{summary.avg}%</Big></Card>
+              <Card title="タスク総数"><Big>{summary.total}</Big></Card>
+              <Card title="開始済み"><Big>{summary.started}</Big></Card>
+              <Card title="完了済み"><Big>{summary.finished}</Big></Card>
+            </div>
+
+            <section style={{ marginTop: 8 }}>
+              <h2>🗓 今週（{thisWeekStart.format("YYYY/MM/DD")} - {thisWeekEnd.format("YYYY/MM/DD")}）</h2>
+              {tasksThisWeek.length === 0 ? <p style={{ color: "#6b7280" }}>該当タスクはありません。</p> : (
+                <ul>{tasksThisWeek.map((t, i) => <li key={i}>{t.title}（{t.start || "—"} → {t.end || "—"}）{t.done ? " ✅" : isStarted(t) ? " ▶︎" : ""}</li>)}</ul>
+              )}
+            </section>
+
+            <section style={{ marginTop: 16 }}>
+              <h2>🗓 来週（{nextWeekStart.format("YYYY/MM/DD")} - {nextWeekEnd.format("YYYY/MM/DD")}）</h2>
+              {tasksNextWeek.length === 0 ? <p style={{ color: "#6b7280" }}>該当タスクはありません。</p> : (
+                <ul>{tasksNextWeek.map((t, i) => <li key={i}>{t.title}（{t.start || "—"} → {t.end || "—"}）{t.done ? " ✅" : isStarted(t) ? " ▶︎" : ""}</li>)}</ul>
+              )}
+            </section>
+
+            <h2 style={{ marginTop: 32 }}>📝 タスク一覧（期間入力・開始/停止・完了の手動更新）</h2>
+            <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
+              {tasks.map((t, i) => (
+                <div key={i} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, padding: 12 }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <div style={{ fontWeight: 700, flex: 1 }}>{t.title}</div>
+                    <div style={{ fontSize: 12, color: "#6b7280" }}>進捗: <strong>{t.progress ?? 0}%</strong></div>
+                  </div>
+                  <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 8 }}>
+                    <label>
+                      開始
+                      <input
+                        type="text"
+                        placeholder="YYYY-MM-DD"
+                        value={t.start || ""}
+                        onChange={(e) => patchTask(i, { start: e.target.value })}
+                        style={{ marginLeft: 6, padding: "4px 6px", border: "1px solid #d1d5db", borderRadius: 6 }}
+                      />
+                    </label>
+                    <span>→</span>
+                    <label>
+                      終了
+                      <input
+                        type="text"
+                        placeholder="YYYY-MM-DD"
+                        value={t.end || ""}
+                        onChange={(e) => patchTask(i, { end: e.target.value })}
+                        style={{ marginLeft: 6, padding: "4px 6px", border: "1px solid #d1d5db", borderRadius: 6 }}
+                      />
+                    </label>
+
+                    <button
+                      onClick={() =>
+                        patchTask(
+                          i,
+                          isStarted(t)
+                            ? { started: false, start: "" }
+                            : { started: true, start: t.start || dayjs().format("YYYY-MM-DD") }
+                        )
+                      }
+                      style={{ marginLeft: "auto", padding: "6px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: isStarted(t) ? "#fee2e2" : "#dbeafe", fontWeight: 600 }}
+                    >
+                      {isStarted(t) ? "⏹ 停止" : "▶︎ 開始"}
+                    </button>
+
+                    <button
+                      onClick={() => patchTask(i, { done: !t.done, end: t.done ? "" : t.end || dayjs().format("YYYY-MM-DD") })}
+                      style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: t.done ? "#dcfce7" : "#f9fafb", fontWeight: 600 }}
+                    >
+                      {t.done ? "✅ 完了" : "完了にする"}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </main>
+    </>
+  );
+}
+
+function Card(props: { title?: string; children: any }) {
+  return (
+    <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, padding: 12, boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
+      {props.title && <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 6 }}>{props.title}</div>}
+      <div>{props.children}</div>
+    </div>
+  );
+}
+function Big(props: { children: any }) {
+  return <div style={{ fontSize: 28, fontWeight: 700, color: "#111827" }}>{props.children}</div>;
+}
+export default dynamic(() => Promise.resolve(WbsPageInner), { ssr: false });
+</file>
+
+<file path="public/data/tasks.json">
+[
+  {
+    "title": "キックオフ／進行体制確定",
+    "owner": "PM",
+    "status": "In Progress",
+    "started": true,
+    "done": false,
+    "progress": 80,
+    "start": "2025-09-19",
+    "end": "2025-09-29"
+  },
+  {
+    "title": "品質・セキュリティ方針",
+    "owner": "Platform",
+    "status": "In Progress",
+    "started": true,
+    "done": false,
+    "progress": 70,
+    "start": "2025-09-19",
+    "end": "2025-09-30"
+  },
+  {
+    "title": "対象範囲確定（年内MVP：エンド用／キャスト用）",
+    "owner": "PM",
+    "status": "In Progress",
+    "started": true,
+    "done": false,
+    "progress": 60,
+    "start": "2025-09-19",
+    "end": "2025-09-30"
+  },
+
+  // ===== Epic A: 認証／ID・パスワード運用（共通基盤） =====
+  {
+    "title": "A-1: DBマイグレーション適用（users/casts/password_reset_tokens）",
+    "owner": "Backend",
+    "status": "In Progress",
+    "started": true,
+    "done": false,
+    "progress": 30,
+    "start": "2025-09-28",
+    "end": "2025-10-01"
+  },
+  {
+    "title": "A-1-1: users.login_id を CI UNIQUE（citext）に変更",
+    "owner": "Backend",
+    "status": "In Progress",
+    "started": true,
+    "done": false,
+    "progress": 50,
+    "start": "2025-09-28",
+    "end": "2025-09-30"
+  },
+  {
+    "title": "A-1-2: casts.cast_code 追加（A000..A999→B000..／不変）",
+    "owner": "Backend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-09-29",
+    "end": "2025-10-01"
+  },
+  {
+    "title": "A-1-3: password_reset_tokens 新設（期限・使用済管理）",
+    "owner": "Backend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-09-30",
+    "end": "2025-10-01"
+  },
+  {
+    "title": "A-2: cast_code 自動採番API（競合防止＆immutable）",
+    "owner": "Backend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-01",
+    "end": "2025-10-03"
+  },
+  {
+    "title": "A-3: パスワード再設定フロー（メール/LINE両対応）",
+    "owner": "Backend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-02",
+    "end": "2025-10-05"
+  },
+  {
+    "title": "A-4: must_change_password フロー実装（初回/再発行時）",
+    "owner": "Frontend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-03",
+    "end": "2025-10-06"
+  },
+  {
+    "title": "A-5: パスワードポリシー（英大/小/数字）UI+APIバリデーション",
+    "owner": "Frontend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-03",
+    "end": "2025-10-06"
+  },
+
+  // ===== Epic B: キャスト管理（拡張） =====
+  {
+    "title": "B-1: cast_attributes.drink_level 検索UI/API",
+    "owner": "Frontend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-06",
+    "end": "2025-10-09"
+  },
+  {
+    "title": "B-2: cast_photos 複数写真＋並び替え（sort_order）",
+    "owner": "Frontend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-06",
+    "end": "2025-10-10"
+  },
+
+  // ===== Epic C: 店舗要件・KPI =====
+  {
+    "title": "C-1: shop_requirements CRUD + 店舗詳細タブ",
+    "owner": "Frontend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-09",
+    "end": "2025-10-12"
+  },
+  {
+    "title": "C-2: KPIカード（必要人数/充足率）ダッシュボード",
+    "owner": "Frontend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-12",
+    "end": "2025-10-15"
+  },
+
+  // ===== Epic D: 固定配属 =====
+  {
+    "title": "D-1: shop_fixed_casts CRUD + 優先表示ルール",
+    "owner": "Frontend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-15",
+    "end": "2025-10-18"
+  },
+
+  // ===== Epic E: シフト／出退勤 =====
+  {
+    "title": "E-1: 当日シフト read-only（GET /shifts）",
+    "owner": "Frontend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-09",
+    "end": "2025-10-11"
+  },
+  {
+    "title": "E-2: シフト承認（planned→approved）API＋UI",
+    "owner": "Frontend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-11",
+    "end": "2025-10-14"
+  },
+  {
+    "title": "E-3: 承認時の監査ログ記録（audit_logs.diff）",
+    "owner": "Backend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-14",
+    "end": "2025-10-15"
+  },
+  {
+    "title": "E-4: 出退勤 read-only（attendances）",
+    "owner": "Frontend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-15",
+    "end": "2025-10-18"
+  },
+
+  // ===== Epic F: 応募書類アップロード =====
+  {
+    "title": "F-1: /applications/:id/docs presign API",
+    "owner": "Backend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-12",
+    "end": "2025-10-14"
+  },
+  {
+    "title": "F-2: アップロードUI統合（進捗・再アップロード）",
+    "owner": "Frontend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-14",
+    "end": "2025-10-16"
+  },
+
+  // ===== Epic G: LINEリレー基盤（下地） =====
+  {
+    "title": "G-1: line_webhook_events 生ログ保存（重複対策）",
+    "owner": "Backend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-18",
+    "end": "2025-10-20"
+  },
+  {
+    "title": "G-2: line_messages 正規化（in/out/type/payload）",
+    "owner": "Backend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-10-20",
+    "end": "2025-10-22"
+  },
+
+  // ===== Epic H: ポータル整備／DevEx =====
+  {
+    "title": "H-1: 開発ポータルERD図／開発ルールの最新版反映",
+    "owner": "PM",
+    "status": "In Progress",
+    "started": true,
+    "done": false,
+    "progress": 40,
+    "start": "2025-09-28",
+    "end": "2025-09-30"
+  },
+  {
+    "title": "H-2: /wbs 反映（タスク粒度・章立て更新）",
+    "owner": "Frontend",
+    "status": "In Progress",
+    "started": true,
+    "done": false,
+    "progress": 40,
+    "start": "2025-09-28",
+    "end": "2025-09-30"
+  },
+
+  // ===== データ移行・テスト・リリース（現行計画に合わせ再配置） =====
+  {
+    "title": "データ受領（先方から依存）",
+    "owner": "PM",
+    "status": "In Progress",
+    "started": true,
+    "done": false,
+    "progress": 50,
+    "start": "2025-09-19",
+    "end": "2025-10-20"
+  },
+  {
+    "title": "マッピング／クリーニング",
+    "owner": "Backend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-11-03",
+    "end": "2025-11-10"
+  },
+  {
+    "title": "取込スクリプト／検証",
+    "owner": "Backend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-11-17",
+    "end": "2025-11-24"
+  },
+  {
+    "title": "単体テスト",
+    "owner": "QA",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-11-24",
+    "end": "2025-12-01"
+  },
+  {
+    "title": "E2Eテスト",
+    "owner": "QA",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-11-24",
+    "end": "2025-12-01"
+  },
+  {
+    "title": "性能テスト",
+    "owner": "QA",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-12-01",
+    "end": "2025-12-08"
+  },
+  {
+    "title": "クロスブラウザ／レスポンシブ",
+    "owner": "Frontend",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-12-01",
+    "end": "2025-12-08"
+  },
+  {
+    "title": "UAT（テストユーザー参加）",
+    "owner": "PM",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-12-08",
+    "end": "2025-12-15"
+  },
+  {
+    "title": "監視・運用Runbook",
+    "owner": "Platform",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-12-08",
+    "end": "2025-12-15"
+  },
+  {
+    "title": "管理者トレーニング",
+    "owner": "PM",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-12-08",
+    "end": "2025-12-15"
+  },
+  {
+    "title": "本番デプロイ",
+    "owner": "Platform",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-12-22",
+    "end": "2025-12-29"
+  },
+  {
+    "title": "リリースノート作成",
+    "owner": "PM",
+    "status": "Planned",
+    "started": false,
+    "done": false,
+    "progress": 0,
+    "start": "2025-12-22",
+    "end": "2025-12-29"
+  }
+]
+</file>
+
+<file path="scripts/seed.ts">
+import { config } from 'dotenv';
+import path from 'node:path';
+import type {
+  PostgrestSingleResponse,
+  PostgrestMaybeSingleResponse,
+} from '@supabase/supabase-js';
+config({ path: path.resolve(process.cwd(), '.env.local') });
+
+import { supabaseAdmin } from '@/lib/db';
+
+function jstOffsetDate(hoursFromNow = 0) {
+  const now = new Date();
+  const t = new Date(now.getTime() + hoursFromNow * 3600 * 1000);
+  return t.toISOString();
+}
+
+type StoreRow = { id: string };
+type CastInsert = {
+  name: string;
+  nickname?: string;
+  store_id?: string | null;
+  wage?: number | null;
+  rating?: number | null;
+  genre?: string[] | null;
+  drinkable?: boolean | null;
+  owner?: string | null;
+};
+type CastRow = { id: string; wage?: number | null };
+
+/** stores.name をユニークキーとして確実に upsert（23505 時はフォールバック） */
+async function upsertStoreByName(input: {
+  name: string;
+  address?: string | null;
+  phone?: string | null;
+}): Promise<StoreRow> {
+  const name = input.name.trim();
+
+  // まずは正攻法の upsert（型は明示キャストで固定）
+  const up = (await supabaseAdmin!
+    .from('stores')
+    .upsert([{ name, address: input.address ?? null, phone: input.phone ?? null }], {
+      onConflict: 'name',
+      ignoreDuplicates: false,
+    })
+    .select('id')
+    .single()) as PostgrestSingleResponse<StoreRow>;
+
+  // ① 成功パス
+  if (up.data) return up.data;
+
+  // ② 23505（重複キー）だけフォールバック
+  if (up.error && (up.error as any).code === '23505') {
+    const ex = (await supabaseAdmin!
+      .from('stores')
+      .select('id')
+      .eq('name', name)
+      .maybeSingle()) as PostgrestMaybeSingleResponse<StoreRow>;
+    if (ex.error) throw ex.error;
+
+    if (ex.data) {
+      const upd = (await supabaseAdmin!
+        .from('stores')
+        .update({ address: input.address ?? null, phone: input.phone ?? null })
+        .eq('id', ex.data.id)
+        .select('id')
+        .single()) as PostgrestSingleResponse<StoreRow>;
+      if (upd.error) throw upd.error;
+      return upd.data!;
+    } else {
+      const ins = (await supabaseAdmin!
+        .from('stores')
+        .insert({ name, address: input.address ?? null, phone: input.phone ?? null })
+        .select('id')
+        .single()) as PostgrestSingleResponse<StoreRow>;
+      if (ins.error) throw ins.error;
+      return ins.data!;
+    }
+  }
+
+  // ③ その他のエラーはそのまま投げる／データなしは異常
+  if (up.error) throw up.error;
+  throw new Error('Store upsert returned no data');
+}
+
+async function main() {
+  if (!supabaseAdmin) throw new Error('SUPABASE_SERVICE_ROLE_KEY is required to seed.');
+
+  // stores は name 一意でアップサート
+  const store = await upsertStoreByName({
+    name: '中洲本店',
+    address: '福岡市博多区中洲',
+    phone: '092-000-0000',
+  });
+
+  const casts: CastInsert[] = [
+    {
+      name: 'さくら',
+      nickname: 'Sakura',
+      store_id: store.id,
+      wage: 2500,
+      rating: 4.5,
+      genre: ['レギュラー'],
+      drinkable: true,
+      owner: 'Tiara',
+    },
+    {
+      name: 'りん',
+      nickname: 'Rin',
+      store_id: store.id,
+      wage: 2200,
+      rating: 4.1,
+      genre: ['新人'],
+      drinkable: false,
+      owner: 'Tiara',
+    },
+  ];
+
+  // casts は (store_id, name) で衝突更新
+  // pay_rate スナップショットに使うため wage も一緒に取得
+  const { data: castRows, error: cErr } = (await supabaseAdmin
+    .from('casts')
+    .upsert(casts, { onConflict: 'store_id,name', ignoreDuplicates: false })
+    .select('id,wage')) as unknown as { data: CastRow[]; error: any };
+  if (cErr) throw cErr;
+
+  // ★ shifts を upsert 化（cast_id, starts_at を一意キーとする）
+  // 先に 0002c で UNIQUE (cast_id, starts_at) を入れておくとより安全です。
+  const starts1 = jstOffsetDate(1);
+  const ends1 = jstOffsetDate(5);
+  const shiftRows = (castRows ?? []).map((c: CastRow) => ({
+    cast_id: c.id,
+    store_id: store.id,
+    starts_at: starts1,
+    ends_at: ends1,
+    status: 'scheduled',
+    role: 'cast',                         // 0003 の追加列に合わせる
+    pay_rate: c.wage ?? null,             // ← その時点の時給をスナップショット
+    memo: 'seed',                         // ← 追跡用
+  }));
+  if (shiftRows.length) {
+    const { error: sErr } = await supabaseAdmin
+      .from('shifts')
+      .upsert(shiftRows, { onConflict: 'cast_id,starts_at', ignoreDuplicates: false });
+    if (sErr) throw sErr;
+  }
+
+  console.log('Seed completed:', {
+    store: store.id,
+    casts: castRows?.length ?? 0,
+    shifts: shiftRows.length,
+  });
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
+</file>
+
+<file path=".gitignore">
+# Node/Next
+node_modules/
+.next/
+out/
+.vercel/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-lock.yaml # ←必要なら残す
+package-lock.json # ←必要なら残す
+
+# OS / IDE
+.DS_Store
+*.swp
+
+# Env
+.env*
+.vercel
+
+# local only
+.env.local
+audit.json
+</file>
+
+<file path="tsconfig.json">
+{
+    "compilerOptions": {
+      "target": "es2017",
+      "lib": ["dom", "dom.iterable", "esnext"],
+      "allowJs": false,
+      "skipLibCheck": true,
+      "strict": true,
+      "forceConsistentCasingInFileNames": true,
+      "noEmit": true,
+      "esModuleInterop": true,
+      "module": "esnext",
+      "moduleResolution": "bundler",
+      "resolveJsonModule": true,
+      "isolatedModules": true,
+      "jsx": "preserve",
+      "incremental": true,
+      "types": ["node", "react", "react-dom"],
+  
+      /* ★ 追加（エイリアス用） */
+      "baseUrl": ".",
+      "paths": { "@/*": ["*"] }
+    },
+    "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+    "exclude": ["node_modules"],
+  
+    /* ★ ts-node で seed 等を動かすための上書き（Next の設定はそのまま） */
+    "ts-node": {
+      "compilerOptions": {
+        "module": "commonjs",
+        "moduleResolution": "node",
+        "baseUrl": ".",
+        "paths": { "@/*": ["*"] }
+      }
+    }
+  }
+</file>
+
+<file path=".github/workflows/api-smoke.yml">
+name: API Smoke
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      NEXT_TELEMETRY_DISABLED: "1"
+      NODE_OPTIONS: "--max_old_space_size=2048"
+      # スモークで叩くベースURL（scripts/test-api.sh が読む）
+      BASE_URL: "http://localhost:3001"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      # 早期に Secrets が空なら落とす（中身は出さない）
+      - name: Verify required env
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY)
+          for k in "${required[@]}"; do
+            if [ -z "${!k}" ]; then
+              echo "::error title=Missing secret::${k} is not set in repository Secrets"
+              exit 1
+            fi
+          done
+          echo "All required env present."
+
+      - name: Build (production)
+        run: npm run build
+
+      - name: Start server (port 3001)
+        shell: bash
+        run: |
+          set -euo pipefail
+          nohup npm run start -- -p 3001 >/tmp/next.log 2>&1 &
+          echo $! > /tmp/next.pid
+          # 起動待ち（最大60秒）
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3001/api/casts >/dev/null; then
+              echo "Server is up on :3001."
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error title=Server did not start in time::see /tmp/next.log"
+          tail -n 200 /tmp/next.log || true
+          exit 1
+
+      - name: Smoke tests
+        run: bash scripts/test-api.sh
+
+      - name: Upload server log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: next-log
+          path: /tmp/next.log
+</file>
+
+<file path="pages/api/shifts/index.ts">
+// /pages/api/shifts/index.ts
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { supabaseAdmin as supabase } from '@/lib/db';
+
+const SORTS = new Set(['starts_at', 'ends_at', 'created_at', 'updated_at', 'pay_rate']);
+const STATUSES = new Set(['scheduled','confirmed','finished','canceled']);
+const ROLES = new Set(['cast','manager','other']);
+
+function parseDate(v?: string) {
+  if (!v) return undefined;
+  const t = Date.parse(v);
+  return Number.isNaN(t) ? undefined : new Date(t).toISOString();
+}
+
+async function logAudit(action: string, payload: any, entity = 'shift', entity_id?: string) {
+  try {
+    await supabase!.from('audit_logs').insert({
+      actor: 'api',
+      action,
+      entity,
+      entity_id: entity_id ?? null,
+      payload,
+    });
+  } catch {
+    /* 監査ログ失敗はAPI結果に影響させない */
+  }
+}
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!supabase) return res.status(500).json({ ok: false, error: 'Service role is not configured' });
+
+  if (req.method === 'GET') {
+    // -------- GET (既存) --------
+    const {
+      store_id,
+      cast_id,
+      status, // scheduled/confirmed/canceled/finished
+      role,   // 'cast' など
+      from,
+      to,
+      page = '1',
+      limit = '30',
+      sort = 'starts_at',
+      expand = '',
+    } = req.query as Record<string, string>;
+
+    const pageNum = Math.max(1, parseInt(String(page), 10) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(String(limit), 10) || 30));
+    const start = parseDate(from);
+    const end = parseDate(to);
+    const rFrom = (pageNum - 1) * limitNum;
+    const rTo = rFrom + limitNum - 1;
+
+    const expandSet = new Set(
+      String(expand).split(',').map((s) => s.trim()).filter(Boolean)
+    );
+    const withNames = expandSet.has('names');
+
+    // count
+    let cq = supabase.from('shifts').select('*', { count: 'exact', head: true });
+    if (store_id) cq = cq.eq('store_id', store_id);
+    if (cast_id) cq = cq.eq('cast_id', cast_id);
+    if (status) cq = cq.eq('status', status);
+    if (role) cq = cq.eq('role', role);
+    if (start) cq = cq.gte('starts_at', start);
+    if (end) cq = cq.lt('starts_at', end);
+
+    const { count: total, error: cntErr } = await cq;
+    if (cntErr) return res.status(500).json({ ok: false, error: cntErr.message });
+    if ((total ?? 0) === 0 || rFrom >= (total ?? 0)) {
+      return res.status(200).json({ ok: true, items: [], page: pageNum, limit: limitNum, total: total ?? 0, hasNext: false });
+    }
+
+    // data
+    const selectExpr = withNames ? '*, casts(name), stores(name)' : '*';
+    let q = supabase.from('shifts').select(selectExpr);
+    if (store_id) q = q.eq('store_id', store_id);
+    if (cast_id) q = q.eq('cast_id', cast_id);
+    if (status) q = q.eq('status', status);
+    if (role) q = q.eq('role', role);
+    if (start) q = q.gte('starts_at', start);
+    if (end) q = q.lt('starts_at', end);
+
+    if (sort) {
+      const parts = sort.split(',').map((s) => s.trim()).filter(Boolean);
+      for (const p of parts) {
+        const asc = !p.startsWith('-');
+        const key = p.replace(/^[+-]/, '');
+        if (SORTS.has(key)) q = q.order(key as any, { ascending: asc, nullsFirst: !asc });
+      }
+    } else {
+      q = q.order('starts_at', { ascending: true });
+    }
+
+    q = q.range(rFrom, rTo);
+
+    const { data, error } = await q;
+    if (error) return res.status(500).json({ ok: false, error: error.message });
+
+    const items = withNames
+      ? (data ?? []).map((row: any) => {
+          const { casts, stores, ...rest } = row || {};
+          return { ...rest, cast_name: casts?.name ?? null, store_name: stores?.name ?? null };
+        })
+      : data ?? [];
+
+    return res.status(200).json({
+      ok: true,
+      items,
+      page: pageNum,
+      limit: limitNum,
+      total: total ?? 0,
+      hasNext: rTo + 1 < (total ?? 0),
+    });
+  }
+
+  if (req.method === 'POST') {
+    // -------- POST：create/upsert --------
+    const {
+      id,                 // 任意：指定があればそのIDを更新（存在しないならエラー）
+      cast_id,
+      starts_at,
+      ends_at,
+      store_id = null,
+      status = 'scheduled',
+      role = 'cast',
+      pay_rate = null,
+      memo = null,
+    } = (req.body ?? {}) as Record<string, any>;
+
+    // バリデーション（最小）
+    if (!cast_id || !starts_at) {
+      return res.status(400).json({ ok: false, error: 'cast_id and starts_at are required' });
+    }
+    const startsIso = parseDate(starts_at);
+    const endsIso = ends_at ? parseDate(ends_at) : null;
+    if (!startsIso) return res.status(400).json({ ok: false, error: 'starts_at must be ISO date' });
+    if (ends_at && !endsIso) return res.status(400).json({ ok: false, error: 'ends_at must be ISO date' });
+    if (status && !STATUSES.has(status)) return res.status(400).json({ ok: false, error: 'invalid status' });
+    if (role && !ROLES.has(role)) return res.status(400).json({ ok: false, error: 'invalid role' });
+
+    try {
+      let out;
+
+      if (id) {
+        // 明示ID更新（存在しなければ404）
+        const { data: ex, error: exErr } = await supabase.from('shifts').select('id').eq('id', id).maybeSingle();
+        if (exErr) return res.status(500).json({ ok: false, error: exErr.message });
+        if (!ex) return res.status(404).json({ ok: false, error: 'shift not found' });
+
+        const { data, error } = await supabase
+          .from('shifts')
+          .update({
+            cast_id,
+            store_id,
+            starts_at: startsIso,
+            ends_at: endsIso,
+            status,
+            role,
+            pay_rate,
+            memo,
+            canceled_at: status === 'canceled' ? new Date().toISOString() : null,
+          })
+          .eq('id', id)
+          .select('*')
+          .single();
+
+        if (error) return res.status(500).json({ ok: false, error: error.message });
+        out = data;
+        await logAudit('update_shift', { id, body: req.body }, 'shift', id);
+      } else {
+        // id なし：UNIQUE(cast_id, starts_at) で upsert（完全に同一開始時刻が対象）
+        const payload = [{
+          cast_id,
+          store_id,
+          starts_at: startsIso,
+          ends_at: endsIso,
+          status,
+          role,
+          pay_rate,
+          memo,
+          canceled_at: status === 'canceled' ? new Date().toISOString() : null,
+        }];
+
+        const { data, error } = await supabase
+          .from('shifts')
+          .upsert(payload, { onConflict: 'cast_id,starts_at', ignoreDuplicates: false })
+          .select('*')
+          .single();
+
+        if (error) return res.status(500).json({ ok: false, error: error.message });
+        out = data;
+        await logAudit('upsert_shift', { body: req.body }, 'shift', data?.id);
+      }
+
+      return res.status(200).json({ ok: true, item: out });
+    } catch (e: any) {
+      await logAudit('error_shift_post', { error: String(e), body: req.body });
+      return res.status(500).json({ ok: false, error: e?.message ?? 'unknown error' });
+    }
+  }
+
+  return res.status(405).json({ ok: false, error: 'Method Not Allowed' });
+}
+</file>
+
+<file path="pages/api/casts/index.ts">
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { supabaseAdmin as supabase } from '@/lib/db';
+import { z } from 'zod';
+
+type ApiError = {
+  ok: false;
+  code: 'VALIDATION_ERROR' | 'DB_ERROR' | 'INTERNAL_ERROR';
+  message: string;
+};
+const bad = (code: ApiError['code'], message: string, status = 400) => ({
+  status,
+  body: { ok: false, code, message } as ApiError,
+});
+
+// ---- GET 用の定義 -----------------------------------------------------------
+const SORTS = new Set(['name', 'rating', 'wage', 'created_at', 'updated_at']);
+
+const querySchema = z.object({
+  keyword: z.string().optional(),
+  owner: z.string().optional(),
+  genre: z.string().optional(), // 単一値（必要なら複数対応へ拡張）
+  drinkable: z.coerce.boolean().optional(),
+  wage_min: z.coerce.number().optional(),
+  active: z.coerce.boolean().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(30),
+  sort: z.string().optional(), // 例: "rating,-wage,name"
+});
+
+// ---- POST 用の定義 ----------------------------------------------------------
+const CastCreate = z.object({
+  store_id: z.string().uuid(),
+  name: z.string().min(1),
+  nickname: z.string().optional(),
+  wage: z.number().int().min(0).nullable().optional(),
+  rating: z.number().min(0).max(5).nullable().optional(),
+  genre: z.array(z.string()).nullable().optional(),
+  drinkable: z.boolean().nullable().optional(),
+  owner: z.string().nullable().optional(),
+  // 将来追加カラムが来ても落とさないように
+}).strict();
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!supabase) {
+    const e = bad('INTERNAL_ERROR', 'Service role is not configured', 500);
+    return res.status(e.status).json(e.body);
+  }
+
+  // ------------------------ POST /api/casts ------------------------
+  if (req.method === 'POST') {
+    const parsed = CastCreate.safeParse(req.body);
+    if (!parsed.success) {
+      const e = bad('VALIDATION_ERROR', JSON.stringify(parsed.error.issues, null, 2), 400);
+      return res.status(e.status).json(e.body);
+    }
+    const input = parsed.data;
+
+    // stores FK 事前チェック（存在しなければ 404）
+    const { data: st, error: stErr } = await supabase
+      .from('stores')
+      .select('id')
+      .eq('id', input.store_id)
+      .maybeSingle();
+    if (stErr) {
+      const e = bad('DB_ERROR', stErr.message, 500);
+      return res.status(e.status).json(e.body);
+    }
+    if (!st) {
+      const e = bad('VALIDATION_ERROR', 'store not found', 404);
+      return res.status(e.status).json(e.body);
+    }
+
+    // INSERT（UNIQUE (store_id,name) 衝突は 409）
+    const { data, error } = await supabase.from('casts').insert(input).select('*').single();
+    if (error) {
+      if ((error as any).code === '23505') {
+        // duplicate key
+        return res
+          .status(409)
+          .json({ ok: false, code: 'DB_ERROR', message: 'duplicate cast (store_id,name)' });
+      }
+      const e = bad('DB_ERROR', error.message, 500);
+      return res.status(e.status).json(e.body);
+    }
+
+    return res.status(200).json({ ok: true, item: data });
+  }
+
+  // ------------------------ GET /api/casts -------------------------
+  if (req.method === 'GET') {
+    const parsed = querySchema.safeParse(req.query);
+    if (!parsed.success) {
+      const e = bad('VALIDATION_ERROR', parsed.error.message, 400);
+      return res.status(e.status).json(e.body);
+    }
+    const { keyword, owner, genre, drinkable, wage_min, active, page, limit, sort } = parsed.data;
+
+    const rFrom = (page - 1) * limit;
+    const rTo = rFrom + limit - 1;
+
+    // COUNT
+    let cq = supabase.from('casts').select('*', { count: 'exact', head: true });
+    if (keyword) cq = cq.ilike('name', `%${keyword}%`);
+    if (owner) cq = cq.eq('owner', owner);
+    if (genre) cq = cq.contains('genre', [genre]); // genre: text[]
+    if (drinkable !== undefined) cq = cq.eq('drinkable', drinkable);
+    if (wage_min !== undefined) cq = cq.gte('wage', wage_min);
+    if (active !== undefined) cq = cq.eq('active', active);
+
+    const { count: total, error: cntErr } = await cq;
+    if (cntErr) {
+      const e = bad('DB_ERROR', cntErr.message, 500);
+      return res.status(e.status).json(e.body);
+    }
+    if ((total ?? 0) === 0 || rFrom >= (total ?? 0)) {
+      return res
+        .status(200)
+        .json({ ok: true, items: [], page, limit, total: total ?? 0, hasNext: false });
+    }
+
+    // DATA
+    let q = supabase.from('casts').select('*');
+    if (keyword) q = q.ilike('name', `%${keyword}%`);
+    if (owner) q = q.eq('owner', owner);
+    if (genre) q = q.contains('genre', [genre]);
+    if (drinkable !== undefined) q = q.eq('drinkable', drinkable);
+    if (wage_min !== undefined) q = q.gte('wage', wage_min);
+    if (active !== undefined) q = q.eq('active', active);
+
+    if (sort) {
+      const parts = sort
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      for (const p of parts) {
+        const asc = !p.startsWith('-');
+        const key = p.replace(/^[+-]/, '');
+        if (SORTS.has(key)) q = q.order(key as any, { ascending: asc, nullsFirst: !asc });
+      }
+    } else {
+      q = q.order('updated_at', { ascending: false }).order('name', { ascending: true });
+    }
+
+    q = q.range(rFrom, rTo);
+
+    const { data, error } = await q;
+    if (error) {
+      const e = bad('DB_ERROR', error.message, 500);
+      return res.status(e.status).json(e.body);
+    }
+
+    return res.status(200).json({
+      ok: true,
+      items: data ?? [],
+      page,
+      limit,
+      total: total ?? 0,
+      hasNext: rTo + 1 < (total ?? 0),
+    });
+  }
+
+  // ------------------------ それ以外 -------------------------
+  const e = bad('VALIDATION_ERROR', 'Method Not Allowed', 405);
+  return res.status(e.status).json(e.body);
+}
+</file>
+
+<file path="pages/actions.tsx">
+// pages/actions.tsx
+import Head from "next/head";
+
+export default function Actions() {
+  return (
+    <>
+      <Head>
+        <title>進捗サマリ & 次アクション💡2025/09/24更新</title>
+      </Head>
+
+      <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", lineHeight: 1.6 }}>
+        <h1>🚀 進捗サマリ & 次アクション</h1>
+        <p>年内MVPに向け、実装済みと次の一手をコンパクトに整理しました。</p>
+
+        {/* 実装サマリ */}
+        <h2>✅ 現在の進捗（実装済み）</h2>
+        <ul>
+          <li>
+            <strong>RBAC：</strong> 軽量Auth（<code>x-user-id</code>）＋ <code>Roles</code> デコレータ／
+            <code>RolesGuard</code> 実装。役割：<code>ADMIN</code> / <code>STAFF</code> /{" "}
+            <code>VIEWER</code>（seed で作成済）
+          </li>
+          <li>
+            <strong>Applications：</strong> 一覧・詳細・面接票Upsert・承認（Cast自動作成/更新）・承認後補完ロジックを実装。
+          </li>
+          <li>
+            <strong>Casts：</strong> 一覧・詳細・本体/属性/希望/背景の更新、Application⇄Cast 同期、{" "}
+            <strong>NGの追加/削除</strong> API。
+          </li>
+          <li>
+            <strong>Shops：</strong> 一覧/詳細/作成/更新（要求キーワードの全入替）を実装。
+          </li>
+          <li>
+            <strong>Swagger：</strong> DTOに沿った Example を反映（例：<code>POST /applications/:id/docs</code>）。
+          </li>
+          <li>
+            <strong>スモークテスト：</strong> <code>npm run smoke</code>（E2E最小） /{" "}
+            <code>npm run smoke:rbac</code>（権限確認）を <code>scripts/</code> に整備。
+          </li>
+          <li>
+            <strong>Seed：</strong> 役割＋3ユーザー（ADMIN/STAFF/VIEWER）を自動投入。出力IDをそのままテストに利用可能。
+          </li>
+          <li>
+            <strong>監査ログ：</strong> <code>audit_logs</code> テーブルに重要操作を記録。
+            例：<code>application.approve</code>・<code>cast.ng.upsert</code>・<code>cast.ng.delete</code>。
+            <br />
+            例：<code>diff</code> には <code>{'{'}migrated, supplementedFields, approvedAt{'}'}</code> などを格納。
+          </li>
+        </ul>
+
+        {/* 使い方の要点（PM/関係者向けメモ） */}
+        <details style={{ margin: "1rem 0" }}>
+          <summary>
+            <strong>ℹ️ 動作確認の要点（抜粋）</strong>
+          </summary>
+          <ul>
+            <li>ヘッダ <code>x-user-id</code> に Seed されたユーザーIDを設定。</li>
+            <li>
+              <code>POST /applications</code> → <code>PATCH /applications/:id/form</code> →{" "}
+              <code>PATCH /applications/:id/approve</code>（承認は ADMIN 権限）。
+            </li>
+            <li>
+              Cast は <code>GET /casts</code> / <code>GET /casts/:id</code> で確認。更新系は ADMIN/STAFF のみ。
+            </li>
+            <li>
+              NG追加/削除：<code>POST /casts/:castId/ngs</code> /{" "}
+              <code>DELETE /casts/:castId/ngs/:shopId</code>（ADMIN/STAFF）。
+            </li>
+          </ul>
+        </details>
+
+        {/* 次の一手 */}
+        <h2>🧭 次の一手（提案）</h2>
+        <ol>
+          <li>
+            <strong>シフト/出勤の最小スコープ実装</strong>
+            <ul>
+              <li>ERDに沿って <code>shifts</code> / <code>attendances</code> の read-only API を先行（当日一覧）。</li>
+              <li>
+                優先API：<code>GET /shifts?from&to&page</code>、<code>PATCH /shifts/:id</code>（確定/取消）。
+              </li>
+            </ul>
+          </li>
+          <li>
+            <strong>応募ドキュメントのアップロード導線</strong>
+            <ul>
+              <li>
+                <code>POST /applications/:id/docs/presign</code>（S3 署名URL発行）を追加し、現行{" "}
+                <code>/docs</code> 登録と接続。
+              </li>
+              <li>
+                キー規約：<code>applications/&lt;appId&gt;/&lt;docType&gt;/&lt;uuid&gt;</code>、TTL≈10分、privateバケット。
+              </li>
+            </ul>
+          </li>
+          <li>
+            <strong>監査ログの継続強化</strong>
+            <ul>
+              <li>重要操作（応募承認・NG登録・シフト確定）の JSON diff を記録する仕組みを継続整備。</li>
+              <li>最初はアプリ内ログ → 後日外部集約（CloudWatch/Datadog等）。</li>
+            </ul>
+          </li>
+          <li>
+            <strong>テスト/自動化の強化</strong>
+            <ul>
+              <li>
+                <code>npm run smoke</code> に Shops と NG 操作の簡易チェックを追加。
+              </li>
+              <li>Application⇄Cast 同期のユニットテストを1〜2本だけ先に（変更影響が大きい箇所）。</li>
+            </ul>
+          </li>
+          <li>
+            <strong>ポータル更新</strong>
+            <ul>
+              <li>「開発ルール v1.0」「コーディングルール v1.0」「ERD（Mermaid）」を最新版に更新。</li>
+              <li>Swaggerの Example JSON は DTO 横に配置し、PR で差分レビュー短縮を明記。</li>
+            </ul>
+          </li>
+        </ol>
+
+        {/* PM 連携事項 */}
+        <h2>🤝 PM 連携ポイント（要回答）</h2>
+        <ul>
+          <li>【LIFF/応募】必須項目・同意文言・ファイル種別（表/裏/セルフィー）の確定。</li>
+          <li>【NG運用】店舗起点NGは当面ダッシュボード運用でOKか。</li>
+          <li>【店舗データ】住所分割（都道府県/市区）・電話・要求キーワードのExcel雛形確定。</li>
+          <li>【SLA】「LINEイベント→ダッシュボード反映 ≤ 10秒」の合意とアラート条件。</li>
+          <li>【優先順位】次実装を「シフト管理」から着手で問題ないか（他優先があれば入替可）。</li>
+        </ul>
+
+        {/* 技術チェック */}
+        <h2>🧰 技術準備チェック</h2>
+        <ul>
+          <li>.env テンプレ：DB/S3/LINE/JWT など必須キーを列挙。</li>
+          <li>ESLint/Prettier をルートに適用、CI（lint/typecheck/test）有効化。</li>
+          <li>
+            Swagger を <code>/api/docs</code> で常設、PR にスクリーンショット添付。
+          </li>
+        </ul>
+
+        {/* 今後の流れ */}
+        <h2>📅 今後の流れ</h2>
+        <ol>
+          <li>ポータル更新 → PM確認</li>
+          <li>回答反映 → ERD差分なしを確認 → <strong>Prisma schema 確定</strong></li>
+          <li>優先API（シフト/署名発行/監査ログ雛形）を実装 → stg I/F 試験 → 画面統合</li>
+          <li>応募〜承認〜本登録のE2Eを通し、NG除外ロジックも合わせて検証</li>
+        </ol>
+
+        <p style={{ marginTop: "2rem", color: "#b42318" }}>
+          ※未確定：LIFF同意文言テンプレ、店舗リストの要求キーワード定義。<br />
+          → 連携後、スキーマ/バリデーション/検索条件に即時反映します。
+        </p>
+
+        {/* 参考：コマンド（開発者向け） */}
+        <details style={{ marginTop: "1rem" }}>
+          <summary>
+            <strong>🔧 参考コマンド（開発者向け）</strong>
+          </summary>
+          <pre style={{ background: "#f6f8fa", padding: "1rem", overflowX: "auto" }}>{`# seed（IDはRBAC/スモークで使用）
+npm run seed
+
+# スモーク（E2E最小／RBAC）
+export ADMIN_ID=...; export STAFF_ID=...; export VIEWER_ID=...
+npm run smoke
+npm run smoke:rbac
+
+# 応募→承認（サンプル：STAFFで応募→ADMINで承認）
+BASE=http://localhost:4000/api/v1
+H_JSON='content-type: application/json'
+
+APP_RESP=$(
+  curl -sS -X POST "$BASE/applications" -H "$H_JSON" -H "x-user-id: $STAFF_ID" \
+  -d "$(jq -n --arg ch line --arg em "audit_\${RANDOM}@example.com" --arg ph "+819012345678" \
+        '{channel:$ch, email:$em, phone:$ph}')"
+)
+APP_ID=$(echo "$APP_RESP" | jq -r '.id // empty')
+
+curl -sS -X PATCH "$BASE/applications/$APP_ID/approve" \
+  -H "$H_JSON" -H "x-user-id: $ADMIN_ID" -d '{}' | jq .
+
+# NG追加/削除（STAFF）
+CAST_ID=$(curl -sS "$BASE/casts?take=1" -H "x-user-id: $STAFF_ID" | jq -r '.[0].userId')
+SHOP_ID=$(curl -sS -X POST "$BASE/shops" -H "$H_JSON" -H "x-user-id: $STAFF_ID" \
+  -d '{"name":"NG監査テスト店"}' | jq -r .id)
+
+curl -sS -X POST "$BASE/casts/$CAST_ID/ngs" \
+  -H "$H_JSON" -H "x-user-id: $STAFF_ID" \
+  -d "$(jq -n --arg id "$SHOP_ID" --arg src staff --arg reason '監査テスト' \
+        '{shopId:$id, source:$src, reason:$reason}')" | jq .
+
+curl -sS -X DELETE "$BASE/casts/$CAST_ID/ngs/$SHOP_ID" \
+  -H "x-user-id: $STAFF_ID" | jq .
+`}</pre>
+        </details>
+      </main>
+    </>
+  );
+}
+</file>
+
+<file path="package.json">
+{
+    "name": "tiara-portal",
+    "private": true,
+    "scripts": {
+        "dev": "next dev -p 3000",
+        "dev:3001": "next dev -p 3001",
+        "build": "next build",
+        "start": "next start",
+        "lint": "next lint",
+        "seed": "ts-node -r tsconfig-paths/register --compiler-options '{\"module\":\"commonjs\"}' scripts/seed.ts",
+        "test:api": "bash scripts/test-api.sh"
+    },
+    "dependencies": {
+        "@supabase/supabase-js": "^2.57.4",
+        "dayjs": "^1.11.18",
+        "next": "^15.5.3",
+        "next-mdx-remote": "^5.0.0",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+        "rehype-autolink-headings": "^7.1.0",
+        "rehype-slug": "^6.0.0",
+        "remark-gfm": "^4.0.1",
+        "zod": "^4.1.11"
+    },
+    "devDependencies": {
+        "@types/node": "^24.5.2",
+        "@types/react": "latest",
+        "@types/react-dom": "latest",
+        "dotenv": "^17.2.2",
+        "ts-node": "^10.9.2",
+        "tsconfig-paths": "^4.2.0",
+        "typescript": "latest"
+    }
+}
+</file>
+
+<file path="scripts/test-api.sh">
+#!/usr/bin/env bash
+set -euo pipefail
+
+# BASE_URL を環境変数で上書き可能に（例：BASE_URL=http://localhost:3001 npm run test:api）
+BASE_URL="${BASE_URL:-http://localhost:3000}"
+
+# ---- portable ISO8601 (UTC) helpers ----
+iso_utc() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
+
+# Linux(GNU) 優先、ダメなら macOS(BSD) 用に "+10 hours" -> "-v+10H" に変換して実行
+rel_utc() {
+  local spec="$1"     # 例: "-15 days" / "+10 hours" / "+4 hours"
+  if date -u -d "$spec" +"%Y-%m-%dT%H:%M:%SZ" >/dev/null 2>&1; then
+    date -u -d "$spec" +"%Y-%m-%dT%H:%M:%SZ"
+    return
+  fi
+  # BSD date 変換
+  local sign num unit bsd_unit
+  sign="${spec%% *}"           # "+10" or "-15"
+  unit="${spec#* }"            # "hours" / "days" など
+  num="${sign#[-+]}"           # "10" / "15"
+  sign="${sign:0:1}"           # "+" / "-"
+  case "$unit" in
+    day|days)       bsd_unit="d" ;;
+    hour|hours)     bsd_unit="H" ;;
+    minute|minutes) bsd_unit="M" ;;
+    second|seconds) bsd_unit="S" ;;
+    week|weeks)     bsd_unit="w" ;;
+    month|months)   bsd_unit="m" ;;
+    year|years)     bsd_unit="y" ;;
+    *) echo "Unsupported unit: $unit" >&2; return 1 ;;
+  esac
+  date -u -v"${sign}${num}${bsd_unit}" +"%Y-%m-%dT%H:%M:%SZ"
+}
+
+FROM="$(rel_utc "-15 days")"
+TO="$(rel_utc "+15 days")"
+
+echo "== casts default =="
+curl -fsS "${BASE_URL}/api/casts" | jq .
+
+echo "== casts validation NG =="
+# 変なパラメータで 400 が返ることを期待。-f は使わず、ステータスで判定
+tmpfile="$(mktemp)"
+code=$(curl -sS -G "${BASE_URL}/api/casts" \
+  --data-urlencode "page=abc" \
+  -o "$tmpfile" -w "%{http_code}")
+cat "$tmpfile" | jq .
+if [ "$code" -ne 400 ]; then
+  echo "Expected HTTP 400 but got $code"
+  cat "$tmpfile"
+  rm -f "$tmpfile"
+  exit 1
+fi
+rm -f "$tmpfile"
+
+echo "== stores keyword =="
+curl -fsS -G "${BASE_URL}/api/stores" \
+  --data-urlencode "keyword=中洲" | jq .
+
+# storesの先頭を取得（Casts/ShiftsのPOSTに利用）
+first_store=$(curl -fsS "${BASE_URL}/api/stores" | jq -r '.items[0].id')
+if [ -z "${first_store}" ] || [ "${first_store}" = "null" ]; then
+  echo "No store found. Aborting."
+  exit 1
+fi
+
+# ---------------------------
+# 回帰検知: Casts POST -> 409 -> PATCH -> 404
+# ---------------------------
+echo "== casts POST/PATCH smoke =="
+
+unique_name="__smoke_cast__$(date -u +%s)"
+cast_post_payload=$(cat <<JSON
+{
+  "store_id":"${first_store}",
+  "name":"${unique_name}",
+  "nickname":"Smoke",
+  "wage":2000,
+  "rating":4.0,
+  "genre":["レギュラー"],
+  "drinkable":true,
+  "owner":"Tiara"
+}
+JSON
+)
+
+# POST /api/casts
+cast_post_resp=$(curl -sS -X POST "${BASE_URL}/api/casts" \
+  -H "Content-Type: application/json" \
+  -d "${cast_post_payload}")
+echo "$cast_post_resp" | jq .
+new_cast_id=$(echo "$cast_post_resp" | jq -r '.item.id')
+if [ -z "$new_cast_id" ] || [ "$new_cast_id" = "null" ]; then
+  echo "POST /api/casts did not return item.id"
+  exit 1
+fi
+
+# 重複（同store_id+name）で 409 を期待
+dup_code=$(curl -s -X POST "${BASE_URL}/api/casts" \
+  -H "Content-Type: application/json" \
+  -d "{\"store_id\":\"${first_store}\",\"name\":\"${unique_name}\"}" \
+  -o /dev/null -w "%{http_code}")
+if [ "$dup_code" -ne 409 ]; then
+  echo "Expected 409 on duplicate cast, got $dup_code"
+  exit 1
+fi
+
+# PATCH /api/casts/[id]
+cast_patch_resp=$(curl -sS -X PATCH "${BASE_URL}/api/casts/${new_cast_id}" \
+  -H "Content-Type: application/json" \
+  -d '{"nickname":"UpdatedSmoke","rating":4.2}')
+echo "$cast_patch_resp" | jq .
+patched_nickname=$(echo "$cast_patch_resp" | jq -r '.item.nickname')
+if [ "$patched_nickname" != "UpdatedSmoke" ]; then
+  echo "PATCH /api/casts failed: nickname not updated"
+  exit 1
+fi
+
+# 不在ID 404 を期待
+nf_code=$(curl -s -X PATCH "${BASE_URL}/api/casts/00000000-0000-0000-0000-000000000000" \
+  -H "Content-Type: application/json" \
+  -d '{"nickname":"x"}' \
+  -o /dev/null -w "%{http_code}")
+if [ "$nf_code" -ne 404 ]; then
+  echo "Expected 404 on PATCH non-existent cast, got $nf_code"
+  exit 1
+fi
+
+echo "== shifts range & sort =="
+body=$(curl -fsS -G "${BASE_URL}/api/shifts" \
+  --data-urlencode "from=${FROM}" \
+  --data-urlencode "to=${TO}" \
+  --data-urlencode "sort=starts_at" )
+echo "$body" | jq .
+
+# 最低限の健全性チェック（total>=1 を期待）
+total=$(echo "$body" | jq -r '.total // 0')
+if [ "$total" -lt 1 ]; then
+  echo "Expected shifts.total >= 1 but got $total"
+  exit 1
+fi
+
+# 代表 cast の名前展開チェック（存在すればOK）
+cast_id=$(curl -fsS "${BASE_URL}/api/casts" | jq -r '.items[0].id')
+if [ "$cast_id" != "null" ] && [ -n "$cast_id" ]; then
+  echo "== shifts expand=names =="
+  curl -fsS -G "${BASE_URL}/api/shifts" \
+    --data-urlencode "cast_id=${cast_id}" \
+    --data-urlencode "expand=names" | jq .
+fi
+
+# ---------------------------
+# 回帰検知: Shifts POST -> PATCH
+# ---------------------------
+echo "== shifts POST/PATCH smoke =="
+
+# 任意の cast（先頭）を取得
+first_cast=$(curl -fsS "${BASE_URL}/api/casts" | jq -r '.items[0].id')
+if [ -z "${first_cast}" ] || [ "${first_cast}" = "null" ]; then
+  echo "No cast found to run POST/PATCH smoke."
+  exit 1
+fi
+
+START_AT="$(rel_utc "+10 days")"
+
+# END_AT = START_AT + 4h（GNU/BSD 両対応）
+if date -u -d "${START_AT} +4 hours" +"%Y-%m-%dT%H:%M:%SZ" >/dev/null 2>&1; then
+  END_AT=$(date -u -d "${START_AT} +4 hours" +"%Y-%m-%dT%H:%M:%SZ")
+else
+  # BSD: START_AT を基準に +4H
+  END_AT=$(date -u -j -f "%Y-%m-%dT%H:%M:%SZ" "${START_AT}" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "${START_AT}")
+  END_AT=$(date -u -v+4H -j -f "%Y-%m-%dT%H:%M:%SZ" "${END_AT}" +"%Y-%m-%dT%H:%M:%SZ")
+fi
+
+post_payload=$(cat <<JSON
+{
+  "cast_id": "${first_cast}",
+  "store_id": "${first_store}",
+  "starts_at": "${START_AT}",
+  "ends_at": "${END_AT}",
+  "status": "scheduled",
+  "role": "cast",
+  "pay_rate": 2500,
+  "memo": "smoke"
+}
+JSON
+)
+
+# POST /api/shifts
+post_resp=$(curl -sS -X POST "${BASE_URL}/api/shifts" \
+  -H "Content-Type: application/json" \
+  -d "${post_payload}")
+echo "${post_resp}" | jq .
+new_id=$(echo "${post_resp}" | jq -r '.item.id')
+if [ -z "${new_id}" ] || [ "${new_id}" = "null" ]; then
+  echo "POST /api/shifts did not return item.id"
+  exit 1
+fi
+
+# PATCH -> canceled
+patch_code=$(curl -sS -o /dev/null -w "%{http_code}" -X PATCH "${BASE_URL}/api/shifts/${new_id}" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"canceled","memo":"smoke canceled"}')
+if [ "$patch_code" -ne 200 ]; then
+  echo "PATCH /api/shifts/${new_id} failed (HTTP ${patch_code})"
+  exit 1
+fi
+
+# 取得して canceled を確認
+get_one=$(curl -fsS -G "${BASE_URL}/api/shifts" \
+  --data-urlencode "cast_id=${first_cast}" \
+  --data-urlencode "from=$(rel_utc '+9 days')" \
+  --data-urlencode "to=$(rel_utc '+11 days')" \
+  --data-urlencode "sort=starts_at")
+echo "${get_one}" | jq .
+status=$(echo "${get_one}" | jq -r '.items[] | select(.id=="'"${new_id}"'") | .status')
+if [ "${status}" != "canceled" ]; then
+  echo "Expected status=canceled for ${new_id}, got ${status:-<empty>}"
+  exit 1
+fi
+
+echo "✅ smoke tests passed"
+</file>
+
+<file path="pages/index.tsx">
+import Head from "next/head";
+import Link from "next/link";
+
+export default function Home() {
+  return (
+    <>
+      <Head>
+        <title>Tiara System Portal</title>
+      </Head>
+      <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem" }}>
+        <h1>Tiara System 開発ポータル</h1>
+        <p>中洲人材派遣「ティアラネット」システム開発まとめサイト</p>
+
+        <h2>📌 概要</h2>
+        <ul>
+          <li>対象：中洲「ティアラネット」</li>
+          <li>提供形態：PWA（モバイル）＋ Web管理</li>
+          <li>年内リリース範囲：キャスト/スタッフ/店舗（AI除く）</li>
+          <li>翌年以降：AIマッチング機能</li>
+        </ul>
+
+        <h2>🔗 ページ一覧</h2>
+        <ul>
+          <li><Link href="/wbs">WBS & ガントチャート🆕9/28</Link></li>
+          <li><Link href="/erd">ERD図🆕10/17</Link></li>
+          <li><Link href="/rules">開発ルール</Link></li>
+          <li><Link href="/docs/coding-rules">コーディングルール</Link></li> {/* ← 追加 */}
+          <li><Link href="/actions">次アクション🆕9/24</Link></li>
+          <li><a href="/questionnaire">質問票</a></li>
+        </ul>
+      </main>
+    </>
+  );
+}
+</file>
+
+<file path="pages/erd.tsx">
+import Head from "next/head";
+
+export default function ERD() {
+  return (
+    <>
+      <Head>
+        <title>ERD図</title>
+      </Head>
+      <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem" }}>
+        <h1>🗂 ERD図</h1>
+        <p>最新のERD図は以下のリンクから参照できます。</p>
+
+        <ul>
+          <li>
+            <a
+              href="https://mermaid.live/edit#pako:eNrFWmlTG0ca_itTqk2VvQaPOWIbVeUDAdmm4gAGvNlKyE4NMy1potGMMgc2sakCKcbC4A2bw_FBDq-xTZwYJ_Fmw4KP_5JhJPEpf2Hf7jk0PYdAJKlQLkvq-72e9-i-lBJUEaXSKaQNSnxO44uTCsO88grzmvfHjL3eP8CwTP_5iTPNVjzK1JGmM5fwV4bRDU1ScgzH6QZvmDrHMZMpe-Orxr0rtc2qNf_y12dVVOQlmZUlBXG6OcWcHx46dz7z67PFyZSzhGlKInzAf6NvUIvyppHnSpo6LYlIo3r8xSZTznKMYsoyPyUjb1F3INkb_95rYInX9QuqJnJ5Xs_Te6k5SeHgdJOpne3t2ocfAUkDQy4ZjDX_pLb6yKE4QJM7F7OKM2ZKCCbzYlFSWGBTNssKvG6wel4tcXhEaJLDSadpSlXx8YumbnBCnldyiPNO6gwwpCKCCcWS8UGTBmekyPFGdJAMW3MOTXHdgoZ4I2GqWRIDfbOTCv7QVBm1ow1Y71iFL6IERYiqAZ7RFGCIWWSlUKd7MsL8do9HJkniETwPC33PQ5Lf7izmVLDRW8JpDBxKZy5f7uxULwVPmGZA8Zr8jBsA0pVyChKdhShbHegfn6CNFGtYW2LBakE47Sr2EWbgTGbgDeYf7_R3vv3uO8c6-9691NXRM_sXwISdzTl760Fj_bG9cdt-sQw2sLN53V5bDLPJY8voGx2nQjL1t2v-gX29WEr3d3X3wBbuKfBeeOWQ1EVJL8n8DIel73RgzcT2ImlGHn93WiXFwB98DtHAIooa0nUaAPKqgqLYQZmhCO0FTi1QjSA3Dl0sIU1CikCvANiVlUAJYG1D5UzNXc1AF_GxFNU7JmWAwBRO0nWTGBowxSo_tSrPrMpi_dZW4-5y7VbZrm6H0cuckiWBZqiPeCzTuLteX9uqf7rurwUSbyz9UPvse_ujJ1Zl-9wYdAakR6FKc23qXNFFrfmNuDMeGF6C1nL5sqvSaQbkxAE7ibg8VYdJwIkp02jL2O2vtmqr39k_fFmbewjUW3NlR8IymkYym-clDciWVQ2jPGh7Y726s3kNqKwt3bWf_dQSEcihAohANDGPpFwe9L5I24KsGnn4wunSB0G9Bf-ASJs_gWgcUGOoaqBBQcC0kiQUzBJtJE1agHQF-MVeQHyBVQuY9O8Xal_cdwiJ-q0A6a5ZMrvbH7ON5f-yu1f_Bex4ZM1_k7TKbBN_XBgLS8gFO194JQ1lkYbNpy3pbS7XVu-ArtV_esDCx-6NT-zNJ6xVXrcqj6zyv-uPFx2h1r7aBqCqP932xQgyhDXaF6CIdEkDbudVMOaZmI6iqhh5r8dHAUwd7hX5GT2IdcybqtLxFhI7TmlS2KL9SdhEuCleEb1JXSfTx451dvfA_4mTeLCzINhg7cLhBsYcnepoNjgqSijjwNcAQCIRn9QRcpqxKgtW-R4w1qp847DU4b13iOD8rKxi3WHo-V9alYpVmd_ZXNq9tRI3TUCSjAlJmHYtMC1Ccg4pAOqBiY21qwBwIPOB8b_VKk_hvKA0p18HBfmfVbmG1yxjbXlsVe5ZlRX4Bkj4jVW5wfKyHDAJx8ZUCJdkQc2rMuB_4HwtVT6o12Gdn-KFQk5TTUVsR-f7SyUAY96QVOWXhY8HYCFmd26hcW_V3gA3XLbK1_YKVcJ67Vm8eoHL4tNQrUXVkKbJblQz4BU4dvCqiiAh2o2C3unAKyGvqjrtDIn-6UhGAl6PK6kgeL0F84IMCjAvGveMnhmZGBmPhj-O223J3UDoXgVYqH-6fUD26T1cAdFmX5AU0XfFWV5A4FDkLJuF_MMFUMoCYJ6qGRyE716uk-w3k9TNoTeJWcRPw7_PsZqX14ghPwVjsFeWIauJ4Z-gFkHbeFBf-KroSDH-YGYSU5NEjFKgjFoOiYH2IsR7EPeBt9SJ_y-pYAmIslEOlAVpoJcc8X1wQrpb1EzwiNA3TXeBiRq8zAGtU4A_xgw9S0ZZyJjMXM4PI91JJSywksoL-chOwB-EDE4XVNPwO4MChZwbBeIgLzB1WqVSXCuJprHRtdKBOJmlnRXidKK2fNVeuW5vgU5sD5-Gzxg1yPLTxHm0L_xf5rYPuTLuIOYviYcZOo3bl16QRneBsOUlRNH7sZcmYWlGlgoOkjkNrYaJ3NRMAMiVXDsA3nj53L72NWsvgi9b6x8dAr7X79wDd2pVHlvl73fn7tlLn7VrN634o4NnDaUlDkYfkGmYXD9ZjTIr0B1RtvEzI6MhnN5Tr0LsIx5VMEwNsQIYKjM0PJj5-94lhGaeGAwbyDp0KO4bP50pcrjgtEe6SOKP36GgQuTIgw3rqG2Lu21X70Ne1li_CXrVePQYmLazvQEWvpdGJSgPOQYX4R6QJNKQB05M59RsVhIkXva1h1IPiq6AipB2Db2PHSiuXrWjDjvPV2vVFQhDdzbnakvfOcYFpNfu_Kd2A0K_h_aVdfvK_dqdlwdkgHumFhRRJ2-l-cxY5tz5obHMm5nhiRgrwAuZkEMU93KzIRaMnp9gT2cmGMCSX5995JGxv7JVAtEBTY6mklxRUtygJphShmIZlxjIlEBVwAkq-8v3Y9nb5EoSe-07WxDd7165Dql8DGez0kXYpt2K2OjIOOEsO5g5m5nINJl7xIPfgzG5VRi5b2cWZVSQSB-fKfhOGhZhZ__o6Nmhgf6JoZHhcYZlBkcGQvrKN7OQdjiqQxRjP3lhv1wFZuLcZf-pi4fPeV5RkJxYLg9yTUOQTU4nIC9QoKlJnRp6D3xDoNMp56JpCV2AEIyU8EF4IUjMSfCV8ASCeCkHVjKZIogIgb9aDN834DQgCqxZE2byCn-AmmbL-mWLuqdXuWhWDGKLnUFo0BnqbzLlZ9rYBKufW3PlN5EGu4ukXPak8ei72s1_0jUXlwo378f1U8EIJJpeiTQXrVjgqUjDsqD6KPlhWSAtIEFvu7YKcHEluJY1HZf8-a-t-eU4ouNrO1lNLbbqN1TqTLGlJldmkdogs5_qIM1dkZtGmpR17ZtrQpLn6DF8aNqMl1-0KiO4ayaUEXCuggzJUHGtsekinDkxhQS3J7GQ4I9w6hMJ2tF2QBZAO05UhXYQD4Y713_1jbv1lQWITIIY2NpvBLeNegp_ZcoQQTak0gCfBWBbQWKBT1kJsYQj4XvGaM1CyCOhoJvFOM7IKi-2Yg1EQAUuD4YH6IcO6hZ-C0ucAqcPqTTCXHDxMubgbm30Tz9y3A0h5WnTng8SI044OtxRVT8S2Gt0SHr7nuczLzn0HTo1gd8RTExkhgf7hwcy4QhNyv7RdaXYOCyo3fCpGbGIgJSQE8GKxJUAXrBiBdrB9ZOyFN4mJj4BOkoyDl5E1os9WAGXaWSQJv0QwgOoqRmaAKYZtQS69h3VtHn1FgodiZDi8_5wJ6XAfqe7ffIA7_CugRoGsJ7f60ooNgk-N8bifPBWuVbdhrDSmv92f7battoQuOQSXlJoyDA1xbktda98qENt1Fbn6j-VnbtSfJ1V_aK-CPjyxL5-E0Ym3MY6W6qmES4dFpGRV0UmHJoBV9kir5i8zL4f_9AkMsXTU7IVrkYqbIkHmTVbYHuWn8LOn5VxXJpKuNd2IwYIFLKSVkRivHIFRR2vYTEjghe_bh_Ri9-IJJ4KBF4sEOt2qAX7Nng52txzTGzTptzr7OjpCXnNu20KSoczb6WZ_vHxodPDpIiAleb5J7XP79uLP8IXiC7snzdqd15a81WgKyYRdl6QFA9SyL8d3In192HtDx_ZV6r21oPfxbgcl9nkCenC7ndlGb85ubplL63ZC1fAeJyDwAG991wJ9uI9miFRNl6JzNu9sWQ_XDq0s1W1N26zQGx988XhltMN1bn0I9PBbHe2FujpHYzzOuxwgpEF8N9dk8U-F4awpGaPDN8jBFyCG8SUNAn8sjGDT7BwHdKM-vMNn_OH7LWHrzm_DodM0Q2iAVY1TRLxK7T6z9dqc_d9-UFQWv_0h0Oho_9-biOkdMFHTLHlQWqsm8HrYX-QPOOChBM5jviUuFgkfE2oqzoHGZDy5wcgGEaockOeV0TZvWtIqHb4yK_rfjVAMYuQvQkM4LJkmGK4VVVyfnOMvJrsSHD1kQERHo8CQL01MjbIjGXGM6FHaf4DRQ3pCKNpAbVVQJqYOGvNr5OL-mdW5VurMmeVH1iVpy0fk7ot4Sd67nbkDIFHn1Tsd7EEmbYer_r6vsKs2Ui8E8-DxFLc-cGhEBN5U5TIC852n_cdxU-4jjo2CwE5aVJyR_8K30lVsJPoAvx2bqet8seN9Zu7yz_umeIIOINv8teLIxJe2vJCpBAACuVfvJAlnQZOEkOhSXjJ9wDdphhRymYZJhLHQBxCXvsyIsrypmwwl2b3BriowAL8DkSxqY5UDiA1lTY0E3Wkik69K5VOEZlMpiDfxjW_NHwVeY2Ux2dhTolX3lbVojdNU81cPpXO8rIOvxzRuO-x_SEI32kP4PpIKn2ijyyRSl9KXUylO3tPdB3t6e7uefX4id7uY6_2dnekZlLprhN9R_t6e44fO9nd3XW8t6_v5GxH6gOya9fRrq7evhNdvd0nuru7X-0-fnL2_1ROtTc"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              ✏️ Mermaid Live Editor（編集用）💡2025/10/17更新
+            </a>
+          </li>
+          <li>
+            <a
+              href="https://mermaidchart.com/play?utm_source=mermaid_live_editor&utm_medium=share#pako:eNrFWmlTG0ca_itTqk2VvQaPOWIbVeUDAdmm4gAGvNlKyE4NMy1potGMMgc2sakCKcbC4A2bw_FBDq-xTZwYJ_Fmw4KP_5JhJPEpf2Hf7jk0PYdAJKlQLkvq-72e9-i-lBJUEaXSKaQNSnxO44uTCsO88grzmvfHjL3eP8CwTP_5iTPNVjzK1JGmM5fwV4bRDU1ScgzH6QZvmDrHMZMpe-Orxr0rtc2qNf_y12dVVOQlmZUlBXG6OcWcHx46dz7z67PFyZSzhGlKInzAf6NvUIvyppHnSpo6LYlIo3r8xSZTznKMYsoyPyUjb1F3INkb_95rYInX9QuqJnJ5Xs_Te6k5SeHgdJOpne3t2ocfAUkDQy4ZjDX_pLb6yKE4QJM7F7OKM2ZKCCbzYlFSWGBTNssKvG6wel4tcXhEaJLDSadpSlXx8YumbnBCnldyiPNO6gwwpCKCCcWS8UGTBmekyPFGdJAMW3MOTXHdgoZ4I2GqWRIDfbOTCv7QVBm1ow1Y71iFL6IERYiqAZ7RFGCIWWSlUKd7MsL8do9HJkniETwPC33PQ5Lf7izmVLDRW8JpDBxKZy5f7uxULwVPmGZA8Zr8jBsA0pVyChKdhShbHegfn6CNFGtYW2LBakE47Sr2EWbgTGbgDeYf7_R3vv3uO8c6-9691NXRM_sXwISdzTl760Fj_bG9cdt-sQw2sLN53V5bDLPJY8voGx2nQjL1t2v-gX29WEr3d3X3wBbuKfBeeOWQ1EVJL8n8DIel73RgzcT2ImlGHn93WiXFwB98DtHAIooa0nUaAPKqgqLYQZmhCO0FTi1QjSA3Dl0sIU1CikCvANiVlUAJYG1D5UzNXc1AF_GxFNU7JmWAwBRO0nWTGBowxSo_tSrPrMpi_dZW4-5y7VbZrm6H0cuckiWBZqiPeCzTuLteX9uqf7rurwUSbyz9UPvse_ujJ1Zl-9wYdAakR6FKc23qXNFFrfmNuDMeGF6C1nL5sqvSaQbkxAE7ibg8VYdJwIkp02jL2O2vtmqr39k_fFmbewjUW3NlR8IymkYym-clDciWVQ2jPGh7Y726s3kNqKwt3bWf_dQSEcihAohANDGPpFwe9L5I24KsGnn4wunSB0G9Bf-ASJs_gWgcUGOoaqBBQcC0kiQUzBJtJE1agHQF-MVeQHyBVQuY9O8Xal_cdwiJ-q0A6a5ZMrvbH7ON5f-yu1f_Bex4ZM1_k7TKbBN_XBgLS8gFO194JQ1lkYbNpy3pbS7XVu-ArtV_esDCx-6NT-zNJ6xVXrcqj6zyv-uPFx2h1r7aBqCqP932xQgyhDXaF6CIdEkDbudVMOaZmI6iqhh5r8dHAUwd7hX5GT2IdcybqtLxFhI7TmlS2KL9SdhEuCleEb1JXSfTx451dvfA_4mTeLCzINhg7cLhBsYcnepoNjgqSijjwNcAQCIRn9QRcpqxKgtW-R4w1qp847DU4b13iOD8rKxi3WHo-V9alYpVmd_ZXNq9tRI3TUCSjAlJmHYtMC1Ccg4pAOqBiY21qwBwIPOB8b_VKk_hvKA0p18HBfmfVbmG1yxjbXlsVe5ZlRX4Bkj4jVW5wfKyHDAJx8ZUCJdkQc2rMuB_4HwtVT6o12Gdn-KFQk5TTUVsR-f7SyUAY96QVOWXhY8HYCFmd26hcW_V3gA3XLbK1_YKVcJ67Vm8eoHL4tNQrUXVkKbJblQz4BU4dvCqiiAh2o2C3unAKyGvqjrtDIn-6UhGAl6PK6kgeL0F84IMCjAvGveMnhmZGBmPhj-O223J3UDoXgVYqH-6fUD26T1cAdFmX5AU0XfFWV5A4FDkLJuF_MMFUMoCYJ6qGRyE716uk-w3k9TNoTeJWcRPw7_PsZqX14ghPwVjsFeWIauJ4Z-gFkHbeFBf-KroSDH-YGYSU5NEjFKgjFoOiYH2IsR7EPeBt9SJ_y-pYAmIslEOlAVpoJcc8X1wQrpb1EzwiNA3TXeBiRq8zAGtU4A_xgw9S0ZZyJjMXM4PI91JJSywksoL-chOwB-EDE4XVNPwO4MChZwbBeIgLzB1WqVSXCuJprHRtdKBOJmlnRXidKK2fNVeuW5vgU5sD5-Gzxg1yPLTxHm0L_xf5rYPuTLuIOYviYcZOo3bl16QRneBsOUlRNH7sZcmYWlGlgoOkjkNrYaJ3NRMAMiVXDsA3nj53L72NWsvgi9b6x8dAr7X79wDd2pVHlvl73fn7tlLn7VrN634o4NnDaUlDkYfkGmYXD9ZjTIr0B1RtvEzI6MhnN5Tr0LsIx5VMEwNsQIYKjM0PJj5-94lhGaeGAwbyDp0KO4bP50pcrjgtEe6SOKP36GgQuTIgw3rqG2Lu21X70Ne1li_CXrVePQYmLazvQEWvpdGJSgPOQYX4R6QJNKQB05M59RsVhIkXva1h1IPiq6AipB2Db2PHSiuXrWjDjvPV2vVFQhDdzbnakvfOcYFpNfu_Kd2A0K_h_aVdfvK_dqdlwdkgHumFhRRJ2-l-cxY5tz5obHMm5nhiRgrwAuZkEMU93KzIRaMnp9gT2cmGMCSX5995JGxv7JVAtEBTY6mklxRUtygJphShmIZlxjIlEBVwAkq-8v3Y9nb5EoSe-07WxDd7165Dql8DGez0kXYpt2K2OjIOOEsO5g5m5nINJl7xIPfgzG5VRi5b2cWZVSQSB-fKfhOGhZhZ__o6Nmhgf6JoZHhcYZlBkcGQvrKN7OQdjiqQxRjP3lhv1wFZuLcZf-pi4fPeV5RkJxYLg9yTUOQTU4nIC9QoKlJnRp6D3xDoNMp56JpCV2AEIyU8EF4IUjMSfCV8ASCeCkHVjKZIogIgb9aDN834DQgCqxZE2byCn-AmmbL-mWLuqdXuWhWDGKLnUFo0BnqbzLlZ9rYBKufW3PlN5EGu4ukXPak8ei72s1_0jUXlwo378f1U8EIJJpeiTQXrVjgqUjDsqD6KPlhWSAtIEFvu7YKcHEluJY1HZf8-a-t-eU4ouNrO1lNLbbqN1TqTLGlJldmkdogs5_qIM1dkZtGmpR17ZtrQpLn6DF8aNqMl1-0KiO4ayaUEXCuggzJUHGtsekinDkxhQS3J7GQ4I9w6hMJ2tF2QBZAO05UhXYQD4Y713_1jbv1lQWITIIY2NpvBLeNegp_ZcoQQTak0gCfBWBbQWKBT1kJsYQj4XvGaM1CyCOhoJvFOM7IKi-2Yg1EQAUuD4YH6IcO6hZ-C0ucAqcPqTTCXHDxMubgbm30Tz9y3A0h5WnTng8SI044OtxRVT8S2Gt0SHr7nuczLzn0HTo1gd8RTExkhgf7hwcy4QhNyv7RdaXYOCyo3fCpGbGIgJSQE8GKxJUAXrBiBdrB9ZOyFN4mJj4BOkoyDl5E1os9WAGXaWSQJv0QwgOoqRmaAKYZtQS69h3VtHn1FgodiZDi8_5wJ6XAfqe7ffIA7_CugRoGsJ7f60ooNgk-N8bifPBWuVbdhrDSmv92f7battoQuOQSXlJoyDA1xbktda98qENt1Fbn6j-VnbtSfJ1V_aK-CPjyxL5-E0Ym3MY6W6qmES4dFpGRV0UmHJoBV9kir5i8zL4f_9AkMsXTU7IVrkYqbIkHmTVbYHuWn8LOn5VxXJpKuNd2IwYIFLKSVkRivHIFRR2vYTEjghe_bh_Ri9-IJJ4KBF4sEOt2qAX7Nng52txzTGzTptzr7OjpCXnNu20KSoczb6WZ_vHxodPDpIiAleb5J7XP79uLP8IXiC7snzdqd15a81WgKyYRdl6QFA9SyL8d3In192HtDx_ZV6r21oPfxbgcl9nkCenC7ndlGb85ubplL63ZC1fAeJyDwAG991wJ9uI9miFRNl6JzNu9sWQ_XDq0s1W1N26zQGx988XhltMN1bn0I9PBbHe2FujpHYzzOuxwgpEF8N9dk8U-F4awpGaPDN8jBFyCG8SUNAn8sjGDT7BwHdKM-vMNn_OH7LWHrzm_DodM0Q2iAVY1TRLxK7T6z9dqc_d9-UFQWv_0h0Oho_9-biOkdMFHTLHlQWqsm8HrYX-QPOOChBM5jviUuFgkfE2oqzoHGZDy5wcgGEaockOeV0TZvWtIqHb4yK_rfjVAMYuQvQkM4LJkmGK4VVVyfnOMvJrsSHD1kQERHo8CQL01MjbIjGXGM6FHaf4DRQ3pCKNpAbVVQJqYOGvNr5OL-mdW5VurMmeVH1iVpy0fk7ot4Sd67nbkDIFHn1Tsd7EEmbYer_r6vsKs2Ui8E8-DxFLc-cGhEBN5U5TIC852n_cdxU-4jjo2CwE5aVJyR_8K30lVsJPoAvx2bqet8seN9Zu7yz_umeIIOINv8teLIxJe2vJCpBAACuVfvJAlnQZOEkOhSXjJ9wDdphhRymYZJhLHQBxCXvsyIsrypmwwl2b3BriowAL8DkSxqY5UDiA1lTY0E3Wkik69K5VOEZlMpiDfxjW_NHwVeY2Ux2dhTolX3lbVojdNU81cPpXO8rIOvxzRuO-x_SEI32kP4PpIKn2ijyyRSl9KXUylO3tPdB3t6e7uefX4id7uY6_2dnekZlLprhN9R_t6e44fO9nd3XW8t6_v5GxH6gOya9fRrq7evhNdvd0nuru7X-0-fnL2_1ROtTc"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              👀 Mermaid Chart Playground（閲覧用）💡2025/10/17更新
+            </a>
+          </li>
+        </ul>
+        <h1>備考</h1>
+        <p>実装順序は、</p>
+        <p>まず応募データ （applications） からキャスト本登録（casts） への移行フローを先に作っています。</p>
+        <p>理由は、応募フォームで入力された内容をどのようにキャスト本登録にマッピングするかを先に固めることで、</p>
+        <p>後続のキャスト管理画面やAPIの要件が自然に決まるためです。</p>
+        <p>先に移行部分を軽備しておくことで、後から画面を作る際に仕様の迷いや修正が少なくなり、全体の開発効率が上がります。</p>
+        <h1>まとめ</h1>
+        <p>・今は「応募→本登録」への橋渡しを先に実装</p>
+        <p>・これにより、後続のキャスト機能開発をスムーズにする狙い</p>
+      </main>
+    </>
+  );
+}
+</file>
+
+</files>

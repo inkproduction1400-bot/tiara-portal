@@ -1,0 +1,981 @@
+openapi: 3.0.0
+paths:
+  /api/v1/api/v1/health:
+    get:
+      operationId: AppController_health
+      parameters: []
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                example:
+                  ok: true
+                  ts: '2025-01-01T00:00:00.000Z'
+      tags:
+        - health
+  /api/v1/api/v1/db-ping:
+    get:
+      operationId: AppController_dbPing
+      parameters: []
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                example:
+                  db: ok
+      tags:
+        - health
+  /api/v1/health:
+    get:
+      operationId: HealthController_check
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      tags:
+        - Health
+    head:
+      operationId: HealthController_head
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      tags:
+        - Health
+  /api/v1/health/live:
+    get:
+      operationId: HealthController_live
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      tags:
+        - Health
+  /api/v1/health/ready:
+    get:
+      operationId: HealthController_ready
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      tags:
+        - Health
+  /api/v1/health/debug-sentry:
+    get:
+      operationId: HealthController_debugSentry
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      tags:
+        - Health
+  /api/v1/auth/password/reset:
+    post:
+      operationId: PasswordController_reset
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetIssueDto'
+      responses:
+        '201':
+          description: 成功
+          schema:
+            example:
+              ok: true
+              channel: email
+              token: URL-safe-base64-token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssueResetSuccessDto'
+        '429':
+          description: クールダウン中
+          schema:
+            example:
+              statusCode: 429
+              message: 短時間に複数回リクエストが行われました。しばらく待ってから再度お試しください。
+              remainingSec: 96
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CooldownErrorDto'
+      summary: パスワード再設定トークンの発行
+      tags:
+        - auth/password
+  /api/v1/auth/password/consume:
+    post:
+      operationId: PasswordController_consume
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetConsumeDto'
+      responses:
+        '201':
+          description: '結果（ok=true: 成功 / ok=false: トークン無効・再利用など）'
+          schema:
+            examples:
+              success:
+                value:
+                  ok: true
+              reusedOrInvalid:
+                value:
+                  ok: false
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsumeResultDto'
+      summary: 再設定トークンの消費（パスワード変更）
+      tags:
+        - auth/password
+  /api/v1/applications:
+    post:
+      operationId: ApplicationsController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApplicationDto'
+      responses:
+        '201':
+          description: 作成された応募のサマリを返す
+          content:
+            application/json:
+              schema:
+                example:
+                  id: uuid
+                  status: pending
+                  receivedAt: '2025-01-01T00:00:00Z'
+      summary: 応募の一次受付を登録
+      tags:
+        - applications
+    get:
+      operationId: ApplicationsController_list
+      parameters:
+        - name: status
+          required: false
+          in: query
+          schema:
+            type: string
+            enum:
+              - pending
+              - approved
+              - rejected
+        - name: take
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 200
+            default: 50
+            type: number
+        - name: q
+          required: false
+          in: query
+          description: 簡易全文検索（メール/電話/氏名など）
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      summary: 応募一覧
+      tags:
+        - applications
+  '/api/v1/applications/{id}':
+    get:
+      operationId: ApplicationsController_get
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '404':
+          description: application not found
+      summary: 応募詳細の取得（面談票・添付含む）
+      tags:
+        - applications
+  '/api/v1/applications/{id}/approve':
+    patch:
+      description: >-
+        status=approved にしつつ、Application 内容から
+        users/casts/属性/嗜好/背景を作成（既存があれば再利用）。承認後は Cast を正として Application
+        の未入力項目を補完。
+      operationId: ApplicationsController_approve
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 承認後のサマリ＋移行結果＋補完項目
+          content:
+            application/json:
+              schema:
+                example:
+                  id: uuid
+                  status: approved
+                  approvedAt: '2025-01-01T00:00:00Z'
+                  migrated:
+                    mode: created
+                    userId: uuid
+                    castId: uuid
+                    displayName: 山田花子
+                  supplementedFields:
+                    - preferredDays
+                    - preferredTimeFrom
+                    - preferredTimeTo
+        '404':
+          description: application not found
+      summary: 応募を承認し、Cast を自動作成/更新
+      tags:
+        - applications
+  '/api/v1/applications/{id}/form':
+    patch:
+      operationId: ApplicationsController_upsertInterviewForm
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertInterviewFormDto'
+      responses:
+        '200':
+          description: 取り込み後の最新を返却
+      summary: 面接票（登録用紙）を取り込み・更新
+      tags:
+        - applications
+  '/api/v1/applications/{id}/docs':
+    post:
+      operationId: ApplicationsController_createDoc
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApplicationDocDto'
+      responses:
+        '201':
+          description: 作成（または置き換え）された添付メタ情報を返す
+          content:
+            application/json:
+              schema:
+                example:
+                  id: uuid
+                  applicationId: uuid
+                  docType: id_front
+                  s3Key: applications/<appId>/id_front.jpg
+                  checksum: abcd1234
+                  uploadedAt: '2025-01-01T00:00:00Z'
+        '404':
+          description: application not found
+      summary: 応募にファイルメタ情報を添付（身分証/自撮り/登録用紙など）
+      tags:
+        - applications
+  '/api/v1/applications/{id}/migrate-to-cast':
+    post:
+      description: Application の内容をもとに users/casts/... を作成（デバッグ用）
+      operationId: ApplicationsController_migrateToCast
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '201':
+          description: ''
+      summary: 応募データを Cast に移行（User/Cast/付随テーブルを生成）
+      tags:
+        - applications
+  /api/v1/casts:
+    get:
+      operationId: CastsController_list
+      parameters:
+        - name: q
+          required: false
+          in: query
+          description: 検索キーワード（氏名/電話/メール 部分一致）
+          schema:
+            type: string
+        - name: drinkOk
+          required: false
+          in: query
+          description: Drink可で絞り込み（true/false）
+          schema:
+            type: string
+        - name: hasExperience
+          required: false
+          in: query
+          description: 経験有で絞り込み（true/false）
+          schema:
+            type: string
+        - name: take
+          required: false
+          in: query
+          description: 取得件数
+          schema:
+            minimum: 1
+            maximum: 200
+            default: 50
+            type: number
+      responses:
+        '200':
+          description: Cast のリスト
+          content:
+            application/json:
+              schema:
+                example:
+                  - userId: uuid
+                    displayName: 山田花子
+                    phone: +81-90-1234-5678
+                    email: sample@example.com
+                    drinkOk: true
+                    hasExperience: false
+                    createdAt: '2025-01-01T00:00:00Z'
+      summary: Cast一覧
+      tags:
+        - casts
+  '/api/v1/casts/{id}':
+    get:
+      operationId: CastsController_get
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Cast の詳細
+          content:
+            application/json:
+              schema:
+                example:
+                  userId: uuid
+                  displayName: 山田花子
+                  birthdate: '2000-01-01T00:00:00Z'
+                  age: 24
+                  address: 東京都渋谷区
+                  phone: +81-90-xxxx-xxxx
+                  email: sample@example.com
+                  drinkOk: true
+                  hasExperience: false
+                  attributes:
+                    heightCm: 160
+                    clothingSize: M
+                    shoeSizeCm: 24
+                    tattoo: false
+                    needPickup: false
+                  preferences:
+                    desiredHourly: 2500
+                    desiredMonthly: 250000
+                    preferredDays: 'Mon,Wed,Fri'
+                    preferredTimeBand: '18:00-23:00'
+                    preferredArea: 渋谷
+                    ngShopNotes: null
+                    notes: null
+                  backgrounds:
+                    howFound: HP
+                    motivation: 稼ぎたい
+                    otherAgencies: 1〜3社
+                    reasonChoose: サポート
+                    shopSelectionPoints: 時給・立地
+                  ngs:
+                    - shopId: uuid
+                      source: cast
+                      reason: 知人がいる
+      summary: Cast詳細（属性/希望/バックグラウンド/NG/添付の一部）
+      tags:
+        - casts
+    patch:
+      operationId: CastsController_updateCast
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCastDto'
+      responses:
+        '200':
+          description: 更新後の Cast 本体
+      summary: Cast を更新（displayName/phone/email/note/drinkOk など）
+      tags:
+        - casts
+  '/api/v1/casts/{id}/attributes':
+    patch:
+      operationId: CastsController_updateAttributes
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCastAttributesDto'
+      responses:
+        '200':
+          description: ''
+      summary: Cast Attributes を更新（upsert）
+      tags:
+        - casts
+  '/api/v1/casts/{id}/preferences':
+    patch:
+      operationId: CastsController_updatePreferences
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCastPreferencesDto'
+      responses:
+        '200':
+          description: ''
+      summary: Cast Preferences を更新（upsert）
+      tags:
+        - casts
+  '/api/v1/casts/{id}/backgrounds':
+    patch:
+      operationId: CastsController_updateBackground
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCastBackgroundDto'
+      responses:
+        '200':
+          description: ''
+      summary: Cast Background を更新（upsert）
+      tags:
+        - casts
+  '/api/v1/casts/{id}/ngs':
+    post:
+      operationId: CastsController_addNg
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertCastNgDto'
+      responses:
+        '201':
+          description: 追加（または上書き）後のNG一覧を返す
+          content:
+            application/json:
+              schema:
+                example:
+                  ngs:
+                    - shopId: uuid
+                      source: cast
+                      reason: 知人がいる
+                      createdAt: '2025-01-01T00:00:00Z'
+      summary: Cast のNG店舗を追加（既存shopIdがあれば上書き）
+      tags:
+        - casts
+  '/api/v1/casts/{id}/ngs/{shopId}':
+    delete:
+      operationId: CastsController_deleteNg
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: shopId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 削除後のNG一覧を返す
+      summary: Cast のNG店舗を削除（castId & shopId指定）
+      tags:
+        - casts
+  /api/v1/shops:
+    get:
+      operationId: ShopsController_list
+      parameters: []
+      responses:
+        '200':
+          description: Shop のリスト
+      summary: 店舗一覧（キーワード付き）
+      tags:
+        - shops
+    post:
+      operationId: ShopsController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateShopDto'
+      responses:
+        '201':
+          description: 作成結果
+      summary: 店舗作成（キーワードまとめて作成）
+      tags:
+        - shops
+  '/api/v1/shops/{id}':
+    get:
+      operationId: ShopsController_get
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Shop の詳細
+      summary: 店舗詳細（req_keywords を同梱）
+      tags:
+        - shops
+    patch:
+      operationId: ShopsController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateShopDto'
+      responses:
+        '200':
+          description: 更新後の店舗
+      summary: 店舗更新（req_keywords 全入替）
+      tags:
+        - shops
+  '/api/v1/people/{id}':
+    get:
+      operationId: PeopleController_getById
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: user_id (UUID)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 対象ユーザーのプロフィール
+          content:
+            application/json:
+              schema:
+                type: object
+      tags:
+        - people
+    patch:
+      operationId: PeopleController_updatePartial
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: user_id (UUID)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 部分更新後のプロフィール
+          content:
+            application/json:
+              schema:
+                type: object
+      tags:
+        - people
+  /api/v1/locations:
+    get:
+      operationId: LocationsController_list
+      parameters:
+        - name: pageSize
+          required: false
+          in: query
+          description: 1ページ件数(1～100)
+          schema:
+            example: 20
+        - name: page
+          required: false
+          in: query
+          description: ページ番号(1～)
+          schema:
+            example: 1
+        - name: q
+          required: false
+          in: query
+          description: 店名などのあいまい検索
+          schema: {}
+      responses:
+        '200':
+          description: 店舗一覧
+          content:
+            application/json:
+              schema:
+                type: array
+      tags:
+        - locations
+  '/api/v1/locations/{id}':
+    get:
+      operationId: LocationsController_get
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Shop ID (UUID v4)
+          schema:
+            example: 6fea5850-7af0-49be-93e7-7977a713674f
+            type: string
+      responses:
+        '200':
+          description: 店舗1件
+          content:
+            application/json:
+              schema:
+                type: object
+      tags:
+        - locations
+    patch:
+      operationId: LocationsController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Shop ID (UUID v4)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 店舗更新後の情報
+          content:
+            application/json:
+              schema:
+                type: object
+      tags:
+        - locations
+  '/api/v1/shops/{shopId}/requirements':
+    get:
+      operationId: RequirementsController_get
+      parameters:
+        - name: shopId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 'ショップ要件（1:1）'
+          content:
+            application/json:
+              schema:
+                type: object
+      tags:
+        - shops/requirements
+    put:
+      operationId: RequirementsController_upsert
+      parameters:
+        - name: shopId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 要件のUpsert後
+          content:
+            application/json:
+              schema:
+                type: object
+      tags:
+        - shops/requirements
+  '/api/v1/shops/{shopId}/fixed-casts':
+    get:
+      operationId: FixedCastsController_list
+      parameters:
+        - name: shopId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 固定配属一覧
+          content:
+            application/json:
+              schema:
+                type: array
+      tags:
+        - shops/fixed-casts
+    post:
+      operationId: FixedCastsController_add
+      parameters:
+        - name: shopId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 追加後の1件
+          content:
+            application/json:
+              schema:
+                type: object
+      tags:
+        - shops/fixed-casts
+  '/api/v1/shops/{shopId}/fixed-casts/{castId}':
+    delete:
+      operationId: FixedCastsController_delete
+      parameters:
+        - name: shopId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: castId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 削除結果
+          content:
+            application/json:
+              schema:
+                type: object
+      tags:
+        - shops/fixed-casts
+  '/api/v1/shops/{shopId}/assignments':
+    get:
+      operationId: AssignmentsController_list
+      parameters:
+        - name: shopId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      tags:
+        - Assignments
+    post:
+      operationId: AssignmentsController_create
+      parameters:
+        - name: shopId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '201':
+          description: ''
+      tags:
+        - Assignments
+  '/api/v1/shops/{shopId}/assignments/{id}':
+    patch:
+      operationId: AssignmentsController_update
+      parameters:
+        - name: shopId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      tags:
+        - Assignments
+info:
+  title: Tiara API
+  description: MVP API docs
+  version: 0.0.1
+  contact: {}
+tags: []
+servers:
+  - url: /
+  - url: /api/v1
+components:
+  securitySchemes:
+    bearer:
+      scheme: bearer
+      bearerFormat: JWT
+      type: http
+  schemas:
+    ResetIssueDto:
+      type: object
+      properties: {}
+    IssueResetSuccessDto:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        channel:
+          type: string
+          enum:
+            - email
+            - line
+          example: email
+        token:
+          type: string
+          example: URL-safe-base64-token
+      required:
+        - ok
+        - channel
+        - token
+    CooldownErrorDto:
+      type: object
+      properties:
+        statusCode:
+          type: number
+          example: 429
+        message:
+          type: string
+          example: 短時間に複数回リクエストが行われました。しばらく待ってから再度お試しください。
+        remainingSec:
+          type: number
+          example: 96
+          description: クールダウン残り秒（返らない場合もあるため optional）
+      required:
+        - statusCode
+        - message
+    ResetConsumeDto:
+      type: object
+      properties: {}
+    ConsumeResultDto:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+      required:
+        - ok
+    CreateApplicationDto:
+      type: object
+      properties:
+        channel:
+          type: string
+          enum:
+            - line
+            - web
+            - other
+          example: line
+        email:
+          type: string
+          example: user@example.com
+        phone:
+          type: string
+          example: +81-90-1234-5678
+        fullName:
+          type: string
+          example: 山田 花子
+        drinkOk:
+          type: boolean
+          example: true
+        genres:
+          example:
+            - ガールズバー
+            - スナック
+          type: array
+          items:
+            type: string
+        hourlyExpectation:
+          type: number
+          example: 2500
+          description: 希望時給(円)
+      required:
+        - channel
+    UpsertInterviewFormDto:
+      type: object
+      properties: {}
+    CreateApplicationDocDto:
+      type: object
+      properties: {}
+    UpdateCastDto:
+      type: object
+      properties: {}
+    UpdateCastAttributesDto:
+      type: object
+      properties: {}
+    UpdateCastPreferencesDto:
+      type: object
+      properties: {}
+    UpdateCastBackgroundDto:
+      type: object
+      properties: {}
+    UpsertCastNgDto:
+      type: object
+      properties: {}
+    CreateShopDto:
+      type: object
+      properties: {}
+    UpdateShopDto:
+      type: object
+      properties: {}
+

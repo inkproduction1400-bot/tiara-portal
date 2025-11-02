@@ -1,28 +1,21 @@
-body {
-    margin: 0;
-    padding: 0;
-    background: #f9fafb;
-    color: #111827;
-    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  }
-  
-  h1 {
-    font-size: 1.8rem;
-    margin-bottom: 1rem;
-    color: #1e3a8a;
-  }
-  
-  h2 {
-    margin-top: 1.5rem;
-    color: #2563eb;
-  }
-  
-  a {
-    color: #2563eb;
-    text-decoration: none;
-  }
-  
-  a:hover {
-    text-decoration: underline;
-  }
-  
+/* styles/globals.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 基本レイヤ */
+@layer base {
+  body { @apply m-0 bg-zinc-50 text-zinc-900; } /* ← 修正: bg-zincbg/text-ink を置換 */
+  main { @apply pt-16; }
+}
+
+/* コンポーネント系 */
+@layer components {
+  .prose-docs { @apply prose prose-zinc max-w-3xl; }
+  .prose-docs a { @apply text-blue-600 no-underline hover:underline; } /* ← text-accent を置換 */
+
+  .nav { @apply sticky top-0 z-40 w-full border-b bg-white/80 backdrop-blur; }
+  .nav-inner { @apply mx-auto max-w-6xl px-4 py-2 flex gap-2 flex-wrap; }
+  .nav-link { @apply px-3 py-1 rounded-md text-sm hover:bg-black/5; }
+  .nav-link-active { @apply bg-black text-white; }
+}
