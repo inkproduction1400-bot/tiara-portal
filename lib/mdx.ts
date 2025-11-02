@@ -1,16 +1,19 @@
 // lib/mdx.ts
-import { compileMDX } from 'next-mdx-remote/rsc';
-import remarkGfm from 'remark-gfm';
-import rehypeSlug from 'rehype-slug';
-import rehypeAutolinkHeadings from 'rehype-autolink-headings';
 import fs from 'node:fs/promises';
 import fss from 'node:fs';
 import path from 'node:path';
-import type { ReactNode } from 'react';
+
+import { unified } from 'unified';
+import remarkParse from 'remark-parse';
+import remarkGfm from 'remark-gfm';
+import remarkRehype from 'remark-rehype';
+import rehypeSlug from 'rehype-slug';
+import rehypeAutolinkHeadings from 'rehype-autolink-headings';
+import rehypeStringify from 'rehype-stringify';
 
 export type LoadDocResult = {
-  content: ReactNode;
-  frontmatter: Record<string, any>;
+  html: string;                              // ← ReactNode ではなく HTML 文字列
+  frontmatter: Record<string, any>;          // ここは将来 frontmatter パーサ導入想定
   absolutePath: string;
   relativePath: string;
 };
@@ -44,34 +47,35 @@ async function resolveExistingRel(slugParts: string[]): Promise<string> {
   throw new Error(`doc not found for slug: ${JSON.stringify(slugParts)}`);
 }
 
-/** ドキュメントを読み込み、MDX を RSC で compile */
+/** ドキュメントを読み込み、MD/MDX → HTML に変換（RSCを使わない） */
 export async function loadDoc(slugInput?: string[] | string): Promise<LoadDocResult> {
   const slugParts = ensureArray(slugInput);
   const rel = await resolveExistingRel(slugParts.length ? slugParts : ['index']);
   const absolutePath = path.join(DOCS_ROOT, rel);
   const source = await fs.readFile(absolutePath, 'utf8');
 
-  const { content, frontmatter } = await compileMDX({
-    source,
-    options: {
-      parseFrontmatter: true,
-      mdxOptions: {
-        remarkPlugins: [remarkGfm],
-        rehypePlugins: [rehypeSlug, [rehypeAutolinkHeadings, { behavior: 'wrap' }]],
-      },
-    },
-  });
+  // いまは frontmatter 未対応（必要になれば remark-frontmatter を組み込み）
+  const frontmatter: Record<string, any> = {};
+
+  const file = await unified()
+    .use(remarkParse)
+    .use(remarkGfm)
+    .use(remarkRehype, { allowDangerousHtml: true })
+    .use(rehypeSlug)
+    .use(rehypeAutolinkHeadings, { behavior: 'wrap' })
+    .use(rehypeStringify, { allowDangerousHtml: true })
+    .process(source);
 
   return {
-    content,
-    frontmatter: (frontmatter as any) ?? {},
+    html: String(file.value),
+    frontmatter,
     absolutePath,
     relativePath: rel,
   };
 }
 
 /**
- * content/docs 以下の .md / .mdx を再帰探索し、slug 配列（セグメント配列）一覧を返す
+ * content/docs 以下の .md / .mdx を再帰探索し、slug 配列一覧を返す
  * 例:
  *  - content/docs/index.md                        -> []
  *  - content/docs/assignments.md                  -> ['assignments']
@@ -89,11 +93,10 @@ export async function getAllDocSlugs(): Promise<string[][]> {
       } else if (ent.isFile()) {
         if (!/\.mdx?$/.test(ent.name)) continue;
 
-        if (/^index\.mdx?$/.test(ent.name)) {
-          // ディレクトリ直下の index は baseSegs が slug
+        if (/^index\.mdx?$/.test(ent.name) || /^index\.md$/.test(ent.name)) {
           results.push(baseSegs);
         } else {
-          const stem = ent.name.replace(/\.mdx?$/, '');
+          const stem = ent.name.replace(/\.mdx?$/, '').replace(/\.md$/, '');
           results.push([...baseSegs, stem]);
         }
       }

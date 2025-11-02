@@ -29,11 +29,11 @@ export default async function Page(
 ) {
   const { slug: raw } = await params;
   const slug = raw?.length ? raw : ['index'];
-  const { content } = await loadDoc(slug);
+  const { html } = await loadDoc(slug); // ← HTML文字列を取得
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8 prose prose-zinc">
-      {content}
+      <div dangerouslySetInnerHTML={{ __html: html }} />
     </main>
   );
 }
