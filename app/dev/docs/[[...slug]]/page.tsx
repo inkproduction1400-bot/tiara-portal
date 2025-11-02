@@ -2,16 +2,19 @@
 import type { Metadata } from 'next';
 import { loadDoc, getAllDocSlugs } from '@/lib/mdx';
 
-type Props = { params: { slug?: string[] } };
+type SlugParams = { slug?: string[] };
 
-// すべてのドキュメントへ SSG
 export async function generateStaticParams() {
-  const slugs = await getAllDocSlugs(); // string[][]
-  return slugs.map((slug) => ({ slug })); // [] (index) も含む
+  const slugs = await getAllDocSlugs();
+  // { slug: string[] } の配列を返す
+  return slugs.map((slug) => ({ slug }));
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const slug = params.slug?.length ? params.slug : ['index'];
+export async function generateMetadata(
+  { params }: { params: Promise<SlugParams> }
+): Promise<Metadata> {
+  const { slug: raw } = await params;
+  const slug = raw?.length ? raw : ['index'];
   try {
     const { frontmatter } = await loadDoc(slug);
     const titleFromMd = (frontmatter as any)?.title as string | undefined;
@@ -21,8 +24,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function Page({ params }: Props) {
-  const slug = params.slug?.length ? params.slug : ['index'];
+export default async function Page(
+  { params }: { params: Promise<SlugParams> }
+) {
+  const { slug: raw } = await params;
+  const slug = raw?.length ? raw : ['index'];
   const { content } = await loadDoc(slug);
 
   return (
