@@ -1,20 +1,18 @@
-// app/dev/docs/layout.tsx
-import type { Metadata } from 'next';
+// app/layout.tsx
+// ▼これだと見つからない
+// import "./globals.css";
 
-export const metadata: Metadata = {
-  title: {
-    default: 'Docs',
-    template: 'Docs | %s',
-  },
-  description: 'Tiara API 開発ドキュメント',
+// ▼こう直す（プロジェクト直下の styles/globals.css を参照）
+import "../styles/globals.css";
+
+export const metadata = {
+  title: "Tiara Portal",
 };
 
-export default function DocsLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8">
-      <article className="prose prose-zinc max-w-none">
-        {children}
-      </article>
-    </main>
+    <html lang="ja">
+      <body>{children}</body>
+    </html>
   );
 }
