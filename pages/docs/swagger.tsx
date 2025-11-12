@@ -14,7 +14,7 @@ export default function SwaggerUIPage() {
     <>
       <Head>
         <title>OpenAPI (Swagger UI)</title>
-        {/* CSS はCDN経由。_app.tsxで読み込んでいる場合は重複OK（副作用なし） */}
+        {/* Swagger UI CSS */}
         <link
           rel="stylesheet"
           href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css"
@@ -23,7 +23,7 @@ export default function SwaggerUIPage() {
 
       <div id="swagger-ui" />
 
-      {/* 1) ライブラリ読込（bundle → preset の順） */}
+      {/* 1) Swagger JS (bundle → preset の順) */}
       <Script
         src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"
         strategy="afterInteractive"
@@ -33,7 +33,7 @@ export default function SwaggerUIPage() {
         strategy="afterInteractive"
       />
 
-      {/* 2) 初期化。両オブジェクトが揃うまでポーリングしてから実行 */}
+      {/* 2) 両オブジェクトが読み込まれてから初期化 */}
       <Script
         id="swagger-init"
         strategy="afterInteractive"
@@ -49,8 +49,11 @@ export default function SwaggerUIPage() {
         presets: [w.SwaggerUIBundle.presets.apis, w.SwaggerUIStandalonePreset],
         layout: "BaseLayout",
         deepLinking: true,
-        docExpansion: "none",            // お好みで
-        defaultModelsExpandDepth: -1     // Modelツリーを閉じる
+        docExpansion: "list",              // エンドポイントを展開表示
+        defaultModelsExpandDepth: 1,       // ★ Models (Schemas) セクションを表示
+        defaultModelExpandDepth: 1,        // ★ 各モデル内のプロパティを1階層展開
+        defaultModelRendering: "model",    // ★ Exampleではなく型表示を優先
+        showExtensions: true,              // 拡張情報も表示
       });
     } else {
       setTimeout(tryInit, 50);
