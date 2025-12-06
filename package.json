@@ -17,7 +17,7 @@
     "dependencies": {
         "@supabase/supabase-js": "^2.57.4",
         "dayjs": "^1.11.18",
-        "next": "^15.5.3",
+        "next": "^15.5.7",
         "next-mdx-remote": "^5.0.0",
         "react": "^18.3.1",
         "react-dom": "^18.3.1",
